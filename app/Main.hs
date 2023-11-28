@@ -1,6 +1,10 @@
 module Main (main) where
 import System.Environment (getArgs)
-import Lib (readExpr, eval)
+import Lib (readExpr, eval, trapError, extractValue)
+import Control.Monad (liftM)
 
 main :: IO ()
-main = getArgs >>= print . eval . readExpr . head
+main = do
+    args <- getArgs
+    let evaled = fmap show $ readExpr (head args) >>= eval
+    putStrLn $ extractValue $ trapError evaled

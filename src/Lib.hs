@@ -1,5 +1,6 @@
-module Lib (readExpr, eval) where
+module Lib (readExpr, eval, trapError, extractValue) where
 import Text.ParserCombinators.Parsec hiding (spaces)
+import Control.Monad.Except (MonadError(catchError, throwError))
 
 data LispVal = Atom String
              | List [LispVal]
@@ -19,6 +20,12 @@ data LispError = NumArgs Integer [LispVal]
 instance Show LispError where show = showError
 
 type ThrowsError = Either LispError -- on donne que la première partie du Either, le reste doit-être passé au type
+
+trapError :: (MonadError e m, Show e) => m String -> m String
+trapError action = catchError action (return . show)
+
+extractValue :: ThrowsError a -> a
+extractValue (Right val) = val
 
 showError :: LispError -> String
 showError (UnboundVar message varname)  = message ++ ": " ++ varname
@@ -96,20 +103,22 @@ showVal (List contents) = "(" ++ unwordsList contents ++ ")"
 showVal (DottedList h t) = "(" ++ unwordsList h ++ " . " ++ showVal t ++ ")"
 
 -- comprendre unpackNum
-unpackNum :: LispVal -> Integer
-unpackNum (Number n) = n
+unpackNum :: LispVal -> ThrowsError Integer
+unpackNum (Number n) = return n
 unpackNum (String n) = let parsed = reads n :: [(Integer, String)] in
                            if null parsed
-                              then 0
-                              else fst $ head parsed
+                              then throwError $ TypeMismatch "number" $ String n
+                              else return $ fst $ head parsed
 unpackNum (List [n]) = unpackNum n
-unpackNum _ = 0
+unpackNum notNum = throwError $ TypeMismatch "number" notNum
 
 -- appelle juste fonction sur tout éléments, accumule résultats avec fold
-numericBinop :: (Integer -> Integer -> Integer) -> [LispVal] -> LispVal
-numericBinop op params = Number $ foldl1 op $ map unpackNum params
+numericBinop :: (Integer -> Integer -> Integer) -> [LispVal] -> ThrowsError LispVal
+numericBinop _ [] = throwError $ NumArgs 2 []
+numericBinop _ singleVal@[_] = throwError $ NumArgs 2 singleVal
+numericBinop op params = mapM unpackNum params >>= return . Number . foldl1 op
 
-primitives :: [(String, [LispVal] -> LispVal)]
+primitives :: [(String, [LispVal] -> ThrowsError LispVal)]
 primitives = [("+", numericBinop (+)),
               ("-", numericBinop (-)),
               ("*", numericBinop (*)),
@@ -118,17 +127,20 @@ primitives = [("+", numericBinop (+)),
               ("quotient", numericBinop quot),
               ("remainder", numericBinop rem)]
 
-apply :: String -> [LispVal] -> LispVal
-apply func args = maybe (Bool False) ($ args) $ lookup func primitives
+apply :: String -> [LispVal] -> ThrowsError LispVal
+apply func args = maybe (throwError $ NotFunction "Unrecognized primitive function args" func)
+                        ($ args)
+                        (lookup func primitives)
 
-eval :: LispVal -> LispVal
-eval val@(String _) = val -- @ totalement op, permet de récupérer toute la variable malgré pattern matching
-eval val@(Number _) = val
-eval val@(Bool _) = val
-eval (List [Atom "quote", val]) = val
-eval (List (Atom func : args)) = apply func $ map eval args
+eval :: LispVal -> ThrowsError LispVal
+eval val@(String _) = return val -- @ totalement op, permet de récupérer toute la variable malgré pattern matching
+eval val@(Number _) = return val
+eval val@(Bool _) = return val
+eval (List [Atom "quote", val]) = return val
+eval (List (Atom func : args)) = mapM eval args >>= apply func
+eval badForm = throwError $ BadSpecialForm "Unrecognized special form" badForm
 
-readExpr :: String -> LispVal
+readExpr :: String -> ThrowsError LispVal
 readExpr input = case parse parseExpr "lisp" input of
-    Left err -> String $ "No match: " ++ show err
-    Right val -> val
+    Left err -> throwError $ Parser err
+    Right val -> return val
