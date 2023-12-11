@@ -21,9 +21,25 @@ jobs:
           stack build
           exit $?
 
+  run_tests:
+    name: Run tests using stack test
+    needs: check_can_build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Run stack test
+          shell: bash
+          run: |
+            stack test
+            exit $?
+
   mirroring_to_github:
     name: Mirror to Epitech's github repository
-    needs: check_can_build
+    needs: run_tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
