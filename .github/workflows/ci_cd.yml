@@ -21,6 +21,7 @@ jobs:
       - name: Run stack build
         shell: bash
         run: |
+          stack install
           stack build
           STATUS = $?
 
