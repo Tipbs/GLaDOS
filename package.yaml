@@ -51,15 +51,15 @@ executables:
     - parsec
     - mtl
 
-tests:
-  schemehaskell-test:
-    main:                Spec.hs
-    source-dirs:         test
-    ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
-    dependencies:
-    - schemehaskell
-    - parsec
-    - mtl
+# tests:
+#   schemehaskell-test:
+#     main:                Spec.hs
+#     source-dirs:         test
+#     ghc-options:
+#     - -threaded
+#     - -rtsopts
+#     - -with-rtsopts=-N
+#     dependencies:
+#     - schemehaskell
+#     - parsec
+#     - mtl

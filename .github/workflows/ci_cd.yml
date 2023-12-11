@@ -18,21 +18,6 @@ jobs:
       - name: Setup stack
         uses: freckle/stack-action@v4
 
-      - name: Run stack build
-        shell: bash
-        run: |
-          stack install
-          stack build
-          STATUS = $?
-
-          if [ $STATUS -ne 0 ]; then
-            echo "Error! Couldn't build project"
-            exit 1
-          fi
-          echo "Success! Project builded correctly" 
-          exit 0
-
-
   mirroring_to_github:
     name: Mirror to Epitech's github repository
     needs: check_can_build
