@@ -1,5 +1,6 @@
 module Parser (parseChar, parseAnyChar, parseOr, parseAnd, parseAndWith, parseMany, parseSome) where
-import Data.Maybe (isJust, fromJust)
+import Data.Maybe (isJust, fromJust, maybeToList)
+import Data.List (unfoldr)
 
 type Parser a = String -> Maybe (a, String)
 
@@ -44,11 +45,9 @@ parseMany :: Parser a -> Parser [a]
 parseMany p1 str = Just (fir, finalStr)
     where
         -- taken = takeWhile (/= Nothing) $ iterate p1 (p1 str)
-        rec s = case evaluated of
+        rec s = case p1 s of
             Just (parsed, xs) -> (parsed, xs) : rec xs
             Nothing -> []
-            where
-                evaluated = p1 s
         recCalculated = rec str
         fir = map fst recCalculated
         finalStr = if null recCalculated then str else snd $ last recCalculated
@@ -59,11 +58,9 @@ parseSome p1 str
     | otherwise = Just (fir, finalStr)
     where
         -- taken = takeWhile (/= Nothing) $ iterate p1 (p1 str)
-        rec s = case evaluated of
+        rec s = case p1 s of
             Just (parsed, xs) -> (parsed, xs) : rec xs
             Nothing -> []
-            where
-                evaluated = p1 s
         recCalculated = rec str
         fir = map fst recCalculated
         finalStr = if null recCalculated then str else snd $ last recCalculated

@@ -1,7 +1,6 @@
 module Main (main) where
 import System.Environment (getArgs)
 import Lib (readExpr, eval, trapError, extractValue)
-import Control.Monad (liftM)
 
 main :: IO ()
 main = do

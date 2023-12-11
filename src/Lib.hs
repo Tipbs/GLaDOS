@@ -1,5 +1,21 @@
 module Lib (readExpr, eval, trapError, extractValue) where
-import Text.ParserCombinators.Parsec hiding (spaces)
+import Text.ParserCombinators.Parsec
+    ( char,
+      digit,
+      letter,
+      noneOf,
+      oneOf,
+      space,
+      endBy,
+      many1,
+      sepBy,
+      skipMany1,
+      (<|>),
+      many,
+      parse,
+      try,
+      ParseError,
+      Parser )
 import Control.Monad.Except (MonadError(catchError, throwError))
 
 data LispVal = Atom String
@@ -16,7 +32,6 @@ data LispError = NumArgs Integer [LispVal]
                | BadSpecialForm String LispVal
                | NotFunction String String
                | UnboundVar String String
-               | Default String
 instance Show LispError where show = showError
 
 type ThrowsError = Either LispError -- on donne que la première partie du Either, le reste doit-être passé au type
@@ -142,6 +157,20 @@ cons [f, DottedList l la] = return $ DottedList (f: l) la
 cons [x1, x2] = return $ DottedList [x1] x2
 cons badArg = throwError $ NumArgs 2 badArg
 
+eqv :: [LispVal] -> ThrowsError LispVal
+eqv [Bool val, Bool val2] = return $ Bool $ val == val2
+eqv [Number val, Number val2] = return $ Bool $ val == val2
+eqv [String val, String val2] = return $ Bool $ val == val2
+eqv [Atom val, Atom val2] = return $ Bool $ val == val2
+eqv [DottedList xs x, DottedList ys y] = eqv [List (xs ++ [x]), List (ys ++ [y])]
+eqv [List x, List y] = return $ Bool $ length x == length y && all eqvPair (zip x y)
+    where eqvPair (x1, x2) = case eqv [x1, x2] of
+                                Left _ -> False -- cas impossible
+                                Right (Bool val) -> val
+                                Right _ -> False -- cas impossible
+eqv [_, _] = return $ Bool False
+eqv badArg = throwError $ NumArgs 2 badArg
+
 -- appelle juste fonction sur tout éléments, accumule résultats avec fold
 numericBinop :: (Integer -> Integer -> Integer) -> [LispVal] -> ThrowsError LispVal
 numericBinop _ [] = throwError $ NumArgs 2 []
@@ -156,10 +185,13 @@ boolBinop unpacker op args = if length args /= 2
                                 right <- unpacker $ args !! 1
                                 return $ Bool $ left `op` right
 
+numBoolBinop :: (Integer -> Integer -> Bool) -> [LispVal] -> ThrowsError LispVal
 numBoolBinop = boolBinop unpackNum
 
+boolBoolBinop :: (Bool -> Bool -> Bool) -> [LispVal] -> ThrowsError LispVal
 boolBoolBinop = boolBinop unpackBool
 
+strBoolBinop :: (String -> String -> Bool) -> [LispVal] -> ThrowsError LispVal
 strBoolBinop = boolBinop unpackStr
 
 primitives :: [(String, [LispVal] -> ThrowsError LispVal)]
@@ -182,7 +214,12 @@ primitives = [("+", numericBinop (+)),
               ("string<?", strBoolBinop (<)),
               ("string>?", strBoolBinop (>)),
               ("string<=?", strBoolBinop (<=)),
-              ("string>=?", strBoolBinop (>=))
+              ("string>=?", strBoolBinop (>=)),
+              ("car", car),
+              ("cdr", cdr),
+              ("cons", cons),
+              ("eq?", eqv),
+              ("eqv?", eqv)
             ]
 
 apply :: String -> [LispVal] -> ThrowsError LispVal
@@ -195,7 +232,7 @@ eval val@(String _) = return val -- @ totalement op, permet de récupérer toute
 eval val@(Number _) = return val
 eval val@(Bool _) = return val
 eval (List [Atom "quote", val]) = return val
-eval (List [Atom "if", cond, itrue, ifalse]) = 
+eval (List [Atom "if", cond, itrue, ifalse]) =
      do result <- eval cond
         case result of
              Bool False -> eval ifalse
