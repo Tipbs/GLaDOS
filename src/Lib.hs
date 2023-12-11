@@ -68,9 +68,9 @@ parseList = List <$> sepBy parseExpr spaces
 
 parseDottedList :: Parser LispVal
 parseDottedList = do
-    head <- endBy parseExpr spaces
-    tail <- char '.' >> spaces >> parseExpr
-    return $ DottedList head tail
+    h <- endBy parseExpr spaces
+    t <- char '.' >> spaces >> parseExpr
+    return $ DottedList h t
 
 parseQuoted :: Parser LispVal
 parseQuoted = do
@@ -121,6 +121,26 @@ unpackStr notString  = throwError $ TypeMismatch "string" notString
 unpackBool :: LispVal -> ThrowsError Bool
 unpackBool (Bool b) = return b
 unpackBool notBool = throwError $ TypeMismatch "bool" notBool
+
+-- https://people.csail.mit.edu/jaffer/r5rs/Pairs-and-lists.html
+car :: [LispVal] -> ThrowsError LispVal
+car [List (f: _)] = return f
+car [DottedList (f: _) _] = return f
+car [badArg] = throwError $ TypeMismatch "pair" badArg
+car badArg = throwError $ NumArgs 1 badArg
+
+cdr :: [LispVal] -> ThrowsError LispVal
+cdr [List (_: xs)] = return $ List xs
+cdr [DottedList [_] d] = return d
+cdr [DottedList (_: xs) d] = return $ DottedList xs d
+cdr [badArg] = throwError $ TypeMismatch "pair" badArg
+cdr badArg = throwError $ NumArgs 1 badArg
+
+cons :: [LispVal] -> ThrowsError LispVal
+cons [f, List l] = return $ List $ f : l
+cons [f, DottedList l la] = return $ DottedList (f: l) la
+cons [x1, x2] = return $ DottedList [x1] x2
+cons badArg = throwError $ NumArgs 2 badArg
 
 -- appelle juste fonction sur tout éléments, accumule résultats avec fold
 numericBinop :: (Integer -> Integer -> Integer) -> [LispVal] -> ThrowsError LispVal
@@ -175,6 +195,11 @@ eval val@(String _) = return val -- @ totalement op, permet de récupérer toute
 eval val@(Number _) = return val
 eval val@(Bool _) = return val
 eval (List [Atom "quote", val]) = return val
+eval (List [Atom "if", cond, itrue, ifalse]) = 
+     do result <- eval cond
+        case result of
+             Bool False -> eval ifalse
+             _  -> eval itrue
 eval (List (Atom func : args)) = mapM eval args >>= apply func
 eval badForm = throwError $ BadSpecialForm "Unrecognized special form" badForm
 
