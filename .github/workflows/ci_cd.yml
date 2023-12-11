@@ -15,8 +15,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup stack
-        uses: freckle/stack-action@v4
+      - name: Install stack
+        run: curl -sSL https://get.haskellstack.org/ | sh
+
+      - name: Build project
+        shell: bash
+        run: |
+          stack build
+          exit $?
 
   mirroring_to_github:
     name: Mirror to Epitech's github repository
