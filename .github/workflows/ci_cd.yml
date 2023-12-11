@@ -1,0 +1,48 @@
+name: CI & CD
+  
+on: [push, pull_request]
+
+env:
+  MIRROR_URL: "git@github.com:EpitechPromo2026/B-FUN-500-TLS-5-2-glados-aurelien.masset.git"
+
+jobs:
+  check_can_build:
+    name: Check build status using stack
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Run stack build
+        shell: bash
+        run: |
+          stack build
+          STATUS = $?
+
+          if [ $STATUS -ne 0 ]; then
+            echo "Error! Couldn't build project"
+            exit 1
+          fi
+          echo "Success! Project builded correctly" 
+          exit 0
+
+
+  mirroring_to_github:
+    name: Mirror to Epitech's github repository
+    needs: check_can_build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Push commit/pull request
+        uses: pixta-dev/repository-mirroring-action@v1
+        with:
+          target_repo_url:
+            ${{ env.MIRROR_URL }}
+          ssh_private_key:
+            ${{ secrets.SSH_PRIVATE_KEY }}
