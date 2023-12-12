@@ -64,3 +64,11 @@ parseSome p1 str
         recCalculated = rec str
         fir = map fst recCalculated
         finalStr = if null recCalculated then str else snd $ last recCalculated
+
+parseUInt :: Parser Int
+parseUInt str = case many_result of
+    Just ([], _) -> Nothing
+    Just (result , remaining) -> Just (read result::Int, remaining)
+    where
+        many_result = parseMany (parseAnyChar ['0'..'9']) str
+
