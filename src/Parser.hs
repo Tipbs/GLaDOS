@@ -72,3 +72,16 @@ parseUInt str = case many_result of
     where
         many_result = parseMany (parseAnyChar ['0'..'9']) str
 
+parseInt :: Parser Int
+parseInt [] = Nothing
+parseInt str
+    | isNeg == True = case many_result of
+        Just ([], _) -> Nothing
+        Just (result , remaining) -> Just (read ('-':result)::Int, remaining)  
+    | otherwise = case many_result of
+        Just ([], _) -> Nothing
+        Just (result , remaining) -> Just (read result::Int, remaining)
+    where
+        isNeg = isJust $ parseChar '-' str 
+        rest = if not isNeg then str else tail str
+        many_result = parseMany (parseAnyChar ['0'..'9']) rest
