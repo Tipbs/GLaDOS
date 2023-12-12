@@ -85,3 +85,16 @@ parseInt str
         isNeg = isJust $ parseChar '-' str 
         rest = if not isNeg then str else tail str
         many_result = parseMany (parseAnyChar ['0'..'9']) rest
+
+parsePair :: Parser a -> Parser (a, a)
+parsePair parser input
+    | isPar = do
+        (result, remaining) <- parser rest
+        (_, remChar1) <- parseChar ' ' remaining
+        (result2, remaining2) <- parser remChar1
+        (_, remaining_str) <- parseChar ')' remaining2
+        return ((result, result2), remaining_str)
+    | otherwise = Nothing
+  where
+    isPar = isJust $ parseChar '(' input
+    rest = if not isPar then input else tail input
