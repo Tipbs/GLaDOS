@@ -1,11 +1,19 @@
 import Test.HUnit
 import qualified System.Exit
+import Lib (readExpr, eval, trapError, extractValue)
+
+execLine :: String -> String
+execLine arg =
+    let evaled = fmap show $ readExpr arg >>= eval
+    in extractValue $ trapError evaled
 
 test1 :: Test
-test1 = TestCase (assertEqual "should return 3" (3 :: Integer) ((+) 1 2))
+test1 = TestCase (assertEqual "should return 1" ("1" :: String) (execLine "(if #t 1 2)"))
 
 tests :: Test
-tests = TestList [TestLabel "test1" test1]
+tests = TestList [
+        TestLabel "Check if and boolean" test1
+    ]
 
 main :: IO ()
 main = do
