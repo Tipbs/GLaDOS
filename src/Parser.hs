@@ -98,3 +98,32 @@ parsePair parser input
   where
     isPar = isJust $ parseChar '(' input
     rest = if not isPar then input else tail input
+
+sepBy :: String -> Char -> String
+sepBy [] _ = []
+sepBy (x:xs) c
+    | x == c = xs
+    | otherwise = (x:xs)
+
+parseListRec :: Parser a -> Parser [a]
+parseListRec parser input = case parser input of
+    Nothing -> Just ([], input)
+    Just (result, rest) -> do
+        case sepBy rest ' ' of
+            [] -> do 
+                (results, remaining) <- parseListRec parser rest
+                Just (result : results, remaining)
+            rem -> do
+                (results, remaining) <- parseListRec parser rem
+                Just (result : results, remaining)
+
+parseList :: Parser a -> Parser [a]
+parseList parser input
+    | isPar = case parseListRec parser (sepBy rest ' ') of
+        Just (result, ')':xs) -> Just (result, xs)
+        Just (result, remaining) -> Just (result, remaining)
+    | otherwise = Nothing
+    where
+        isPar = isJust $ parseChar '(' input
+        rest = if not isPar then input else tail input
+
