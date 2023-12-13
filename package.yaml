@@ -63,3 +63,4 @@ tests:
     - schemehaskell
     - parsec
     - mtl
+    - HUnit
