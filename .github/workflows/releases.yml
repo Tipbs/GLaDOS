@@ -1,0 +1,32 @@
+name: Deploy release
+
+on:
+  pull_request:
+    types:
+      - closed
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  BINARY_NAME: testReleases-exe
+
+jobs:
+  release:
+    if: github.event.pull_request.merged == true && startsWith(github.head_ref, 'v')
+    permissions: write-all
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Build using stack build
+        run: |
+          stack build
+
+      - name: Release
+        run: |
+          RELEASE_PATH="`stack path --local-install-root`/bin/$BINARY_NAME"
+          
+          gh release create ${{ github.head_ref }} \
+            "$RELEASE_PATH" \
+            -F CHANGELOG.md \
+            --title "${{ github.head_ref }}"
