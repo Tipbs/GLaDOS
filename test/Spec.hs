@@ -1,5 +1,5 @@
 import Test.HUnit
-import qualified System.Exit
+import System.Exit
 import Lib (readExpr, eval, trapError, extractValue)
 
 execLine :: String -> String
