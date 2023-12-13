@@ -39,7 +39,7 @@ jobs:
 
   mirroring_to_github:
     name: Mirror to Epitech's github repository
-    needs: run_tests
+    needs: check_build_and_tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
