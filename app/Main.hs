@@ -1,9 +1,28 @@
 module Main (main) where
 import System.Environment (getArgs)
 import Lib (readExpr, eval, trapError, extractValue)
+import System.IO (hFlush, stdout, hPutStrLn, stderr)
+
+readLine :: String -> IO String
+readLine str = putStr str >> hFlush stdout >> getLine
+
+evalReadedLine :: IO ()
+evalReadedLine = do
+    line <- readLine "<< "
+    case line of
+        "quit" -> return ()
+        _ -> do putStrLn $ evalArgs line
+                evalReadedLine
+
+evalArgs :: String -> String
+evalArgs arg = extractValue $ trapError evaled
+    where
+        evaled = fmap show $ readExpr arg >>= eval
 
 main :: IO ()
 main = do
     args <- getArgs
-    let evaled = fmap show $ readExpr (head args) >>= eval
-    putStrLn $ extractValue $ trapError evaled
+    case length args of
+        0 -> evalReadedLine
+        1 -> putStrLn $ evalArgs $ head args
+        _ -> hPutStrLn stderr "USAGE: 1 or 0 arguments are required"
