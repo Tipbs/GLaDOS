@@ -6,8 +6,8 @@ env:
   MIRROR_URL: "git@github.com:EpitechPromo2026/B-FUN-500-TLS-5-2-glados-aurelien.masset.git"
 
 jobs:
-  check_can_build:
-    name: Check build status using stack
+  check_build_and_tests:
+    name: Check build and test using stack
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -19,23 +19,23 @@ jobs:
         shell: bash
         run: |
           stack build
-          exit $?
+          STATUS=$?
+          
+          if [ $STATUS -ne 0 ]; then
+            echo "Error! Couldn't build project"
+            exit 1
+          fi
+          echo "Success! Project built successfuly"
 
-  run_tests:
-    name: Run tests using stack test
-    needs: check_can_build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
-      - name: Run stack test
-        shell: bash
-        run: |
           stack test
-          exit $?
+          STATUS=$?
+
+          if [ $STATUS -ne 0 ]; then
+            echo "Error! Unit tests failed"
+            exit 1
+          fi
+          echo "Success! Unit tests succeeded"
+          exit 0
 
   mirroring_to_github:
     name: Mirror to Epitech's github repository
