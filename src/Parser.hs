@@ -2,57 +2,66 @@ module Parser (parseChar, parseAnyChar, parseOr, parseAnd, parseAndWith, parseMa
 import Data.Maybe (isJust, fromJust, maybeToList)
 import Data.List (unfoldr)
 
-type Parser a = String -> Maybe (a, String)
+data Parser a = Parser {
+    runParser :: String -> Maybe (a, String)
+}
 
 parseChar :: Char -> Parser Char
-parseChar _ "" = Nothing
-parseChar ch (x: xs)
-    | ch == x = Just (ch, xs)
-    | otherwise = Nothing
+parseChar c = Parser $ \input ->
+  case input of
+    (x:xs) | x == c -> Just (x, xs)
+    _ -> Nothing
 
 parseAnyChar :: String -> Parser Char
-parseAnyChar _ "" = Nothing
-parseAnyChar chars (x: xs)
-    | x `elem` chars = Just (x, xs)
-    | otherwise = Nothing
+parseAnyChar chars = Parser $ \input ->
+    case input of
+        (x:xs) | x `elem` chars -> Just (x, xs)
+               | otherwise -> Nothing
+        _ -> Nothing
 
 parseOr :: Parser a -> Parser a -> Parser a
-parseOr p1 p2 str
-    | isJust evaluated = evaluated
-    | otherwise = p2 str
-    where
-        evaluated = p1 str
+parseOr p1 p2 = Parser $ \str ->
+    case runParser p1 str of
+        Just result -> Just result
+        Nothing -> runParser p2 str
 
 parseAnd :: Parser a -> Parser b -> Parser (a, b)
-parseAnd p1 p2 str = case evaluated of
+parseAnd p1 p2 = Parser $ \str ->
+    case runParser p1 str of
         Nothing -> Nothing
-        Just (parsed, xs) -> case p2 xs of
+        Just (parsed, xs) -> case runParser p2 xs of
             Just (parsed2, xs2) -> Just ((parsed, parsed2), xs2)
             Nothing -> Nothing
-    where
-        evaluated = p1 str
 
 parseAndWith :: (a -> b -> c) -> Parser a -> Parser b -> Parser c
-parseAndWith fn p1 p2 str = case evaluated of
+parseAndWith fn p1 p2 = Parser $ \str -> 
+    case runParser p1 str of
         Nothing -> Nothing
-        Just (parsed, xs) -> case p2 xs of
+        Just (parsed, xs) -> case runParser p2 xs of
             Just (parsed2, xs2) -> Just (fn parsed parsed2, xs2)
             Nothing -> Nothing
-    where
-        evaluated = p1 str
 
-parseMany :: Parser a -> Parser [a]
-parseMany p1 str = Just (fir, finalStr)
+{-parseMany :: Parser a -> Parser [a]
+parseMany p1 = Parser $ \str ->
+    Just (fir, finalStr)
     where
         -- taken = takeWhile (/= Nothing) $ iterate p1 (p1 str)
-        rec s = case p1 s of
+        rec s = case runParser p1 s of
             Just (parsed, xs) -> (parsed, xs) : rec xs
             Nothing -> []
         recCalculated = rec str
         fir = map fst recCalculated
-        finalStr = if null recCalculated then str else snd $ last recCalculated
+        finalStr = if null recCalculated then str else snd $ last recCalculated-}
 
-parseSome :: Parser a -> Parser [a]
+parseMany :: Parser a -> Parser [a]
+parseMany parser = Parser $ \input ->
+    case runParser parser input of
+    Nothing -> Just ([], input)
+    Just (result, rest) -> do
+        (results, remaining) <- runParser (parseMany parser) rest
+        Just (result : results, remaining)
+
+{-parseSome :: Parser a -> Parser [a]
 parseSome p1 str
     | null recCalculated = Nothing
     | otherwise = Just (fir, finalStr)
@@ -63,14 +72,21 @@ parseSome p1 str
             Nothing -> []
         recCalculated = rec str
         fir = map fst recCalculated
-        finalStr = if null recCalculated then str else snd $ last recCalculated
+        finalStr = if null recCalculated then str else snd $ last recCalculated-}
+
+parseSome :: Parser a -> Parser [a]
+parseSome parser = Parser $ \str ->
+    case runParser (parseMany parser) str of
+        Just ([], _) -> Nothing
+        Just (result, remaining) -> Just (result, remaining)
 
 parseUInt :: Parser Int
-parseUInt str = case many_result of
-    Just ([], _) -> Nothing
-    Just (result , remaining) -> Just (read result::Int, remaining)
+parseUInt = Parser $ \str ->
+    case runParser many_result str of
+        Just ([], _) -> Nothing
+        Just (result , remaining) -> Just (read result::Int, remaining)
     where
-        many_result = parseMany (parseAnyChar ['0'..'9']) str
+        many_result = parseMany (parseAnyChar ['0'..'9'])
 
 parseInt :: Parser Int
 parseInt [] = Nothing
