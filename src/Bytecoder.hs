@@ -5,6 +5,8 @@ import Control.Applicative
 import Lib (LispVal(Atom, List, DottedList, Number, String, Bool))
 import Data.Bits
 import Data.Int
+import Data.Char
+import Prelude
 
 pushBool :: Bool -> [Bool]
 pushBool True = [False, False, False, False]
@@ -14,6 +16,10 @@ numToBoolArr :: Integer -> Int -> Int -> [Bool]
 numToBoolArr _ a b | a == b = []
 numToBoolArr num count max = numToBoolArr num (count+1) max ++ [num `testBit` count]
 
+numToBoolArr2 :: Int -> Int -> Int -> [Bool]
+numToBoolArr2 _ a b | a == b = []
+numToBoolArr2 num count max = numToBoolArr2 num (count+1) max ++ [num `testBit` count]
+
 pushNumber :: Integer -> [Bool]
 pushNumber num = [True, False] ++ numToBoolArr num 0 64
 
@@ -21,8 +27,12 @@ getStrLen :: String -> Integer
 getStrLen [] = 0
 getStrLen (_:b) = 1 + getStrLen b
 
+strToBoolArr :: String -> [Bool]
+strToBoolArr [] = []
+strToBoolArr (a:str) = numToBoolArr2 (ord a) 0 8 ++ strToBoolArr str
+
 pushString :: String -> [Bool]
-pushString str = [False, True] ++ numToBoolArr (getStrLen str) 0 12 -- 8 = Max 256 char. 12 = Max 4096 Char. 16 = Max 65536 Char (Unicode may count more than 1)
+pushString str = [False, True] ++ numToBoolArr (getStrLen str) 0 12 ++ strToBoolArr str  -- 8 = Max 256 char. 12 = Max 4096 Char. 16 = Max 65536 Char (Unicode may count more than 1)
 
 compileToBytecode :: LispVal -> [Bool]
 -- compileToBytecode (Atom ato) = pushAtom ato
