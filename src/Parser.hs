@@ -6,6 +6,12 @@ data Parser a = Parser {
     runParser :: String -> Maybe (a, String)
 }
 
+instance Functor Parser where
+    fmap fct parser = Parser $ \input ->
+        case runParser parser input of
+            Nothing -> Nothing
+            Just (result, remaining) -> Just (fct result, remaining)
+
 parseChar :: Char -> Parser Char
 parseChar c = Parser $ \input ->
   case input of
