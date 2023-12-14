@@ -28,8 +28,7 @@ getStrLen [] = 0
 getStrLen (_:b) = 1 + getStrLen b
 
 strToBoolArr :: String -> [Bool]
-strToBoolArr [] = []
-strToBoolArr (a:str) = numToBoolArr2 (ord a) 0 8 ++ strToBoolArr str
+strToBoolArr str = foldr (\ a -> (++) (numToBoolArr2 (ord a) 0 8)) [] str
 
 pushString :: String -> [Bool]
 pushString str = [False, True] ++ numToBoolArr (getStrLen str) 0 12 ++ strToBoolArr str  -- 8 = Max 256 char. 12 = Max 4096 Char. 16 = Max 65536 Char (Unicode may count more than 1)
