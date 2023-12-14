@@ -1,4 +1,4 @@
-module Lib (readExpr, eval, trapError, extractValue) where
+module Lib (readExpr, eval, trapError, extractValue, LispVal) where
 import Text.ParserCombinators.Parsec
     ( char,
       digit,
@@ -35,6 +35,8 @@ data LispError = NumArgs Integer [LispVal]
 instance Show LispError where show = showError
 
 type ThrowsError = Either LispError -- on donne que la première partie du Either, le reste doit-être passé au type
+
+type Env = [(String, LispVal)]
 
 trapError :: (MonadError e m, Show e) => m String -> m String
 trapError action = catchError action (return . show)
