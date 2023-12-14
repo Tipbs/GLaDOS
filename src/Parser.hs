@@ -1,7 +1,7 @@
 module Parser (parseChar, parseAnyChar, parseOr, parseAnd, 
     parseAndWith, parseMany, parseSome, parseUInt, parseInt,
     parseList, parsePair, parseDigit, parseLetter, parseNotAnyChar,
-    parseSpace, parseEndBy, Parser, runParser) where
+    parseSpace, Parser, runParser) where
 import Data.Maybe (isJust, fromJust, maybeToList)
 import Data.List (unfoldr)
 import Control.Applicative
