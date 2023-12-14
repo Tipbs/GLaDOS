@@ -10,19 +10,26 @@ pushBool :: Bool -> [Bool]
 pushBool True = [False, False, False, False]
 pushBool _ = [False, False, False, True]
 
-numToBoolArr :: Integer -> Int -> [Bool]
-numToBoolArr _ 64 = []
-numToBoolArr num count = numToBoolArr num (count+1) ++ [num `testBit` count]
+numToBoolArr :: Integer -> Int -> Int -> [Bool]
+numToBoolArr _ a b | a == b = []
+numToBoolArr num count max = numToBoolArr num (count+1) max ++ [num `testBit` count]
 
 pushNumber :: Integer -> [Bool]
-pushNumber num = [True, False] ++ numToBoolArr num 0
+pushNumber num = [True, False] ++ numToBoolArr num 0 64
+
+getStrLen :: String -> Integer
+getStrLen [] = 0
+getStrLen (_:b) = 1 + getStrLen b
+
+pushString :: String -> [Bool]
+pushString str = [False, True] ++ numToBoolArr (getStrLen str) 0 12 -- 8 = Max 256 char. 12 = Max 4096 Char. 16 = Max 65536 Char (Unicode may count more than 1)
 
 compileToBytecode :: LispVal -> [Bool]
 -- compileToBytecode (Atom ato) = pushAtom ato
 -- compileToBytecode (List exprs) = concatMap compileToBytecode exprs
 -- compileToBytecode (DottedList exprs last) = concatMap compileToBytecode (exprs ++ '.' ++ last)
 compileToBytecode (Number num) = pushNumber num
--- compileToBytecode (String str) = pushString str
+compileToBytecode (String str) = pushString str
 compileToBytecode (Bool bol) = pushBool bol
 
 showBytesGlobal :: [Bool] -> String
