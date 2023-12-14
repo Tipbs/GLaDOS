@@ -1,6 +1,7 @@
 module Parser (parseChar, parseAnyChar, parseOr, parseAnd, parseAndWith, parseMany, parseSome) where
 import Data.Maybe (isJust, fromJust, maybeToList)
 import Data.List (unfoldr)
+import Control.Applicative
 
 data Parser a = Parser {
     runParser :: String -> Maybe (a, String)
@@ -11,6 +12,15 @@ instance Functor Parser where
         case runParser parser input of
             Nothing -> Nothing
             Just (result, remaining) -> Just (fct result, remaining)
+
+instance Applicative Parser where
+    pure x = Parser $ \input -> Just (x, input) 
+    (Parser p1) <*> (Parser p2) = Parser $ \input ->
+        case p1 input of
+            Nothing -> Nothing
+            Just (f, rest) -> case p2 rest of
+                Nothing -> Nothing
+                Just (result, remaining) -> Just (f result, remaining)
 
 parseChar :: Char -> Parser Char
 parseChar c = Parser $ \input ->
