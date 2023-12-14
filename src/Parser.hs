@@ -1,198 +1,120 @@
-module Parser (parseChar, parseAnyChar, parseOr, parseAnd, 
-    parseAndWith, parseMany, parseSome, parseUInt, parseInt,
-    parseList, parsePair, parseDigit, parseLetter, parseNotAnyChar,
-    parseSpace, Parser, runParser) where
-import Data.Maybe (isJust, fromJust, maybeToList)
-import Data.List (unfoldr)
-import Control.Applicative
+{-# LANGUAGE InstanceSigs #-}
+module Parser (LispVal, lispValP, charP, stringP, Parser (runParser)) where
+import Control.Applicative (Alternative (empty, some, many), (<|>))
+import Data.Char (isDigit, isLetter, isSpace)
 
-data Parser a = Parser {
+data LispVal = Atom String
+             | List [LispVal]
+             | DottedList [LispVal] LispVal
+             | Number Integer
+             | String String
+             | Bool Bool
+             deriving (Show, Eq)
+
+newtype Parser a = Parser {
     runParser :: String -> Maybe (a, String)
 }
 
 instance Functor Parser where
-    fmap fct parser = Parser $ \input ->
-        case runParser parser input of
-            Nothing -> Nothing
-            Just (result, remaining) -> Just (fct result, remaining)
+    fmap :: (a -> b) -> Parser a -> Parser b
+    fmap fun (Parser p) = Parser f
+        where
+            f input = do
+                (x, xs) <- p input
+                Just (fun x, xs)
 
 instance Applicative Parser where
-    pure x = Parser $ \input -> Just (x, input) 
-    (Parser p1) <*> (Parser p2) = Parser $ \input ->
-        case p1 input of
-            Nothing -> Nothing
-            Just (f, rest) -> case p2 rest of
-                Nothing -> Nothing
-                Just (result, remaining) -> Just (f result, remaining)
+    pure :: a -> Parser a
+    pure x = Parser $ \input -> Just (x, input)
+    (<*>) :: Parser (a -> b) -> Parser a -> Parser b -- voir exemples avec Maybe
+    (Parser p1) <*> (Parser p2) = Parser $ \input -> do
+        (f, inp) <- p1 input
+        (second, inp') <- p2 inp
+        Just (f second, inp')
 
 instance Alternative Parser where
-    empty = Parser $ \input -> Nothing
-    (Parser p1) <|> (Parser p2) = Parser $ \input ->
-        case p1 input of
-            Just result -> Just result
-            Nothing -> p2 input
+    empty :: Parser a
+    empty = Parser $ \_ -> Nothing
+    (<|>) :: Parser a -> Parser a -> Parser a
+    (Parser p1) <|> (Parser p2) = Parser $ \input -> p1 input <|> p2 input
 
-parseChar :: Char -> Parser Char
-parseChar c = Parser $ \input ->
-  case input of
-    (x:xs) | x == c -> Just (x, xs)
-    _ -> Nothing
-
-parseDigit :: Parser Char
-parseDigit = Parser $ \input ->
-  case input of
-    (x:xs) | x `elem` digits -> Just (x, xs)
-           | otherwise -> Nothing
-    _ -> Nothing
+charP :: Char -> Parser Char
+charP c = Parser f
     where
-        digits = ['0'..'9']
+        f (x : xs)
+            | c == x = Just (c, xs)
+            | otherwise = Nothing
+        f [] = Nothing
 
-parseSpace :: Parser Char
-parseSpace = Parser $ \input ->
-    case input of
-      (x:xs) | x == ' ' -> Just (x, xs)
-      _ -> Nothing
+stringP :: String -> Parser String
+stringP = traverse charP
 
-parseLetter :: Parser Char
-parseLetter = Parser $ \input ->
-  case input of
-    (x:xs) | x `elem` letters -> Just (x, xs)
-           | otherwise -> Nothing
-    _ -> Nothing
+letterP :: Parser Char
+letterP = Parser f
     where
-        letters = ['a'..'z'] ++ ['A'..'Z']
+        f (x: xs) | isLetter x = Just (x, xs)
+        f _ = Nothing
 
-parseAnyChar :: String -> Parser Char
-parseAnyChar chars = Parser $ \input ->
-    case input of
-        (x:xs) | x `elem` chars -> Just (x, xs)
-               | otherwise -> Nothing
-        _ -> Nothing
+-- manyP :: Parser [a]
+-- manyP = traverse
 
-parseNotAnyChar :: String -> Parser Char
-parseNotAnyChar chars = Parser $ \input ->
-    case input of
-        (x:xs) | x `notElem` chars -> Just (x, xs)
-               | otherwise -> Nothing
-        _ -> Nothing
+spanP :: (Char -> Bool) -> Parser String
+spanP f = Parser $ \input -> Just $ span f input
 
-parseOr :: Parser a -> Parser a -> Parser a
-parseOr p1 p2 = Parser $ \str ->
-    case runParser p1 str of
-        Just result -> Just result
-        Nothing -> runParser p2 str
+notNull :: Parser [a] -> Parser [a]
+notNull p = Parser $ \input -> do
+            (x, inp) <- runParser p input
+            if null x
+                then Nothing
+                else Just (x, inp)
 
-parseAnd :: Parser a -> Parser b -> Parser (a, b)
-parseAnd p1 p2 = Parser $ \str ->
-    case runParser p1 str of
-        Nothing -> Nothing
-        Just (parsed, xs) -> case runParser p2 xs of
-            Just (parsed2, xs2) -> Just ((parsed, parsed2), xs2)
-            Nothing -> Nothing
-
-parseAndWith :: (a -> b -> c) -> Parser a -> Parser b -> Parser c
-parseAndWith fn p1 p2 = Parser $ \str -> 
-    case runParser p1 str of
-        Nothing -> Nothing
-        Just (parsed, xs) -> case runParser p2 xs of
-            Just (parsed2, xs2) -> Just (fn parsed parsed2, xs2)
-            Nothing -> Nothing
-
-{-parseMany :: Parser a -> Parser [a]
-parseMany p1 = Parser $ \str ->
-    Just (fir, finalStr)
+lispNumberP :: Parser LispVal
+lispNumberP = f <$> notNull (spanP isDigit)
     where
-        -- taken = takeWhile (/= Nothing) $ iterate p1 (p1 str)
-        rec s = case runParser p1 s of
-            Just (parsed, xs) -> (parsed, xs) : rec xs
-            Nothing -> []
-        recCalculated = rec str
-        fir = map fst recCalculated
-        finalStr = if null recCalculated then str else snd $ last recCalculated-}
+        f d = Number $ read d
 
-parseMany :: Parser a -> Parser [a]
-parseMany parser = Parser $ \input ->
-    case runParser parser input of
-    Nothing -> Just ([], input)
-    Just (result, rest) -> do
-        (results, remaining) <- runParser (parseMany parser) rest
-        Just (result : results, remaining)
+stringLiteral :: Parser String
+stringLiteral = spanP (/= '\"')
 
-{-parseSome :: Parser a -> Parser [a]
-parseSome p1 str
-    | null recCalculated = Nothing
-    | otherwise = Just (fir, finalStr)
+lispStringP :: Parser LispVal
+lispStringP = String <$> (charP '\"' *> stringLiteral <* charP '\"')
+
+oneOfP :: [Char] -> Parser Char
+oneOfP ch = Parser f
     where
-        -- taken = takeWhile (/= Nothing) $ iterate p1 (p1 str)
-        rec s = case p1 s of
-            Just (parsed, xs) -> (parsed, xs) : rec xs
-            Nothing -> []
-        recCalculated = rec str
-        fir = map fst recCalculated
-        finalStr = if null recCalculated then str else snd $ last recCalculated-}
+        f (x: xs) | x `elem` ch = Just (x, xs)
+        f _ = Nothing
 
-parseSome :: Parser a -> Parser [a]
-parseSome parser = Parser $ \str ->
-    case runParser (parseMany parser) str of
-        Just ([], _) -> Nothing
-        Just (result, remaining) -> Just (result, remaining)
+symbolP :: Parser Char
+symbolP = oneOfP "!#$%&|*+-/:<=>?@^_~"
 
-parseUInt :: Parser Int
-parseUInt = Parser $ \str ->
-    case runParser many_result str of
-        Just ([], _) -> Nothing
-        Just (result , remaining) -> Just (read result::Int, remaining)
+lispAtomP :: Parser LispVal
+lispAtomP = f <$> validAtom
     where
-        many_result = parseMany (parseAnyChar ['0'..'9'])
+        validAtom = some (symbolP <|> letterP)
+        f a = case a of
+            "#t" -> Bool True
+            "#f" -> Bool False
+            _ -> Atom a
 
-parseInt :: Parser Int
-parseInt = Parser $ \str ->
-    case str of
-        [] -> Nothing
-        _ ->
-            let (sign, rest) = if head str == '-' then ("-", tail str) else ("", str)
-                many_result = runParser (parseMany (parseAnyChar ['0'..'9'])) rest
-                in case many_result of
-                    Just ([], _) -> Nothing
-                    Just (result , remaining) -> Just (read (sign ++ result)::Int, remaining)  
+skipManyP :: (Char -> Bool) -> Parser [Char]
+skipManyP = spanP
 
-parsePair :: Parser a -> Parser (a, a)
-parsePair parser = Parser $ \input ->
-    let (isPar, rest) = if head input == '(' then (True, tail input) else (False, "")
-    in case isPar of
-        True -> do
-            (result, remaining) <- runParser parser rest
-            (_, remChar1) <- runParser (parseChar ' ') remaining
-            (result2, remaining2) <- runParser parser remChar1
-            (_, remaining_str) <- runParser (parseChar ')') remaining2
-            return ((result, result2), remaining_str)
-        False -> Nothing
+sepByP :: Parser a -> Parser b -> Parser [b]
+sepByP sep element = many (element <* sep)
 
-sepBy :: String -> Char -> String
-sepBy [] _ = []
-sepBy (x:xs) c
-    | x == c = xs
-    | otherwise = x:xs
+lispListP :: Parser LispVal
+lispListP = List <$> (charP '(' *> elements <* charP ')')
+    where
+        elements = sepByP sep lispValP
+        sep = skipManyP isSpace
 
-parseListRec :: Parser a -> Parser [a]
-parseListRec parser = Parser $ \input ->
-    case runParser parser input of
-        Nothing -> Just ([], input)
-        Just (result, rest) -> do
-            case sepBy rest ' ' of
-                [] -> do 
-                    (results, remaining) <- runParser (parseListRec parser) rest
-                    Just (result : results, remaining)
-                rem -> do
-                    (results, remaining) <- runParser (parseListRec parser) rem
-                    Just (result : results, remaining)
+lispValP :: Parser LispVal
+lispValP = lispNumberP <|> lispStringP <|> lispAtomP <|> lispListP
 
-parseList :: Parser a -> Parser [a]
-parseList parser = Parser $ \input ->
-    let (isPar, rest) = if head input == '(' then (True, tail input) else (False, "")
-    in case isPar of
-        True -> case runParser (parseListRec parser) (sepBy rest ' ') of
-            Just (result, ')':xs) -> Just (result, xs)
-            Just (result, remaining) -> Just (result, remaining)
-        False -> Nothing
-
+-- atomP :: Parser LispVal
+-- atomP str = fmap transf $ letterP str *> manyP
+--     where
+--         transf "#t" = Bool True
+--         transf "#f" = Bool False
+--         transf atom = Atom atom
