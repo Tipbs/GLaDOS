@@ -1,4 +1,4 @@
-module Lib (readExpr, eval, trapError, extractValue) where
+module Lib (readExpr, eval, trapError, extractValue, LispVal(Atom, List, DottedList, Number, String, Bool)) where
 import Text.ParserCombinators.Parsec
     ( char,
       digit,
