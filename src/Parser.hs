@@ -1,4 +1,7 @@
-module Parser (parseChar, parseAnyChar, parseOr, parseAnd, parseAndWith, parseMany, parseSome) where
+module Parser (parseChar, parseAnyChar, parseOr, parseAnd, 
+    parseAndWith, parseMany, parseSome, parseUInt, parseInt,
+    parseList, parsePair, parseDigit, parseLetter, parseNotAnyChar,
+    parseSpace, parseEndBy, Parser, runParser) where
 import Data.Maybe (isJust, fromJust, maybeToList)
 import Data.List (unfoldr)
 import Control.Applicative
@@ -35,10 +38,41 @@ parseChar c = Parser $ \input ->
     (x:xs) | x == c -> Just (x, xs)
     _ -> Nothing
 
+parseDigit :: Parser Char
+parseDigit = Parser $ \input ->
+  case input of
+    (x:xs) | x `elem` digits -> Just (x, xs)
+           | otherwise -> Nothing
+    _ -> Nothing
+    where
+        digits = ['0'..'9']
+
+parseSpace :: Parser Char
+parseSpace = Parser $ \input ->
+    case input of
+      (x:xs) | x == ' ' -> Just (x, xs)
+      _ -> Nothing
+
+parseLetter :: Parser Char
+parseLetter = Parser $ \input ->
+  case input of
+    (x:xs) | x `elem` letters -> Just (x, xs)
+           | otherwise -> Nothing
+    _ -> Nothing
+    where
+        letters = ['a'..'z'] ++ ['A'..'Z']
+
 parseAnyChar :: String -> Parser Char
 parseAnyChar chars = Parser $ \input ->
     case input of
         (x:xs) | x `elem` chars -> Just (x, xs)
+               | otherwise -> Nothing
+        _ -> Nothing
+
+parseNotAnyChar :: String -> Parser Char
+parseNotAnyChar chars = Parser $ \input ->
+    case input of
+        (x:xs) | x `notElem` chars -> Just (x, xs)
                | otherwise -> Nothing
         _ -> Nothing
 
