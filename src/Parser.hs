@@ -22,6 +22,13 @@ instance Applicative Parser where
                 Nothing -> Nothing
                 Just (result, remaining) -> Just (f result, remaining)
 
+instance Alternative Parser where
+    empty = Parser $ \input -> Nothing
+    (Parser p1) <|> (Parser p2) = Parser $ \input ->
+        case p1 input of
+            Just result -> Just result
+            Nothing -> p2 input
+
 parseChar :: Char -> Parser Char
 parseChar c = Parser $ \input ->
   case input of
