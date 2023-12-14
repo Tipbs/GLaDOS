@@ -89,57 +89,53 @@ parseUInt = Parser $ \str ->
         many_result = parseMany (parseAnyChar ['0'..'9'])
 
 parseInt :: Parser Int
-parseInt [] = Nothing
-parseInt str
-    | isNeg == True = case many_result of
-        Just ([], _) -> Nothing
-        Just (result , remaining) -> Just (read ('-':result)::Int, remaining)  
-    | otherwise = case many_result of
-        Just ([], _) -> Nothing
-        Just (result , remaining) -> Just (read result::Int, remaining)
-    where
-        isNeg = isJust $ parseChar '-' str 
-        rest = if not isNeg then str else tail str
-        many_result = parseMany (parseAnyChar ['0'..'9']) rest
+parseInt = Parser $ \str ->
+    case str of
+        [] -> Nothing
+        _ ->
+            let (sign, rest) = if head str == '-' then ("-", tail str) else ("", str)
+                many_result = runParser (parseMany (parseAnyChar ['0'..'9'])) rest
+                in case many_result of
+                    Just ([], _) -> Nothing
+                    Just (result , remaining) -> Just (read (sign ++ result)::Int, remaining)  
 
 parsePair :: Parser a -> Parser (a, a)
-parsePair parser input
-    | isPar = do
-        (result, remaining) <- parser rest
-        (_, remChar1) <- parseChar ' ' remaining
-        (result2, remaining2) <- parser remChar1
-        (_, remaining_str) <- parseChar ')' remaining2
-        return ((result, result2), remaining_str)
-    | otherwise = Nothing
-  where
-    isPar = isJust $ parseChar '(' input
-    rest = if not isPar then input else tail input
+parsePair parser = Parser $ \input ->
+    let (isPar, rest) = if head input == '(' then (True, tail input) else (False, "")
+    in case isPar of
+        True -> do
+            (result, remaining) <- runParser parser rest
+            (_, remChar1) <- runParser (parseChar ' ') remaining
+            (result2, remaining2) <- runParser parser remChar1
+            (_, remaining_str) <- runParser (parseChar ')') remaining2
+            return ((result, result2), remaining_str)
+        False -> Nothing
 
 sepBy :: String -> Char -> String
 sepBy [] _ = []
 sepBy (x:xs) c
     | x == c = xs
-    | otherwise = (x:xs)
+    | otherwise = x:xs
 
 parseListRec :: Parser a -> Parser [a]
-parseListRec parser input = case parser input of
-    Nothing -> Just ([], input)
-    Just (result, rest) -> do
-        case sepBy rest ' ' of
-            [] -> do 
-                (results, remaining) <- parseListRec parser rest
-                Just (result : results, remaining)
-            rem -> do
-                (results, remaining) <- parseListRec parser rem
-                Just (result : results, remaining)
+parseListRec parser = Parser $ \input ->
+    case runParser parser input of
+        Nothing -> Just ([], input)
+        Just (result, rest) -> do
+            case sepBy rest ' ' of
+                [] -> do 
+                    (results, remaining) <- runParser (parseListRec parser) rest
+                    Just (result : results, remaining)
+                rem -> do
+                    (results, remaining) <- runParser (parseListRec parser) rem
+                    Just (result : results, remaining)
 
 parseList :: Parser a -> Parser [a]
-parseList parser input
-    | isPar = case parseListRec parser (sepBy rest ' ') of
-        Just (result, ')':xs) -> Just (result, xs)
-        Just (result, remaining) -> Just (result, remaining)
-    | otherwise = Nothing
-    where
-        isPar = isJust $ parseChar '(' input
-        rest = if not isPar then input else tail input
+parseList parser = Parser $ \input ->
+    let (isPar, rest) = if head input == '(' then (True, tail input) else (False, "")
+    in case isPar of
+        True -> case runParser (parseListRec parser) (sepBy rest ' ') of
+            Just (result, ')':xs) -> Just (result, xs)
+            Just (result, remaining) -> Just (result, remaining)
+        False -> Nothing
 
