@@ -122,8 +122,13 @@ lispListP = List <$> (charP '(' *> elements <* charP ')')
         elements = sepByP sep lispValP
         sep = skipManyP isSpace
 
+lispQuotedP :: Parser LispVal
+lispQuotedP = f <$> (charP '\'' *> lispValP)
+    where
+        f a = List [Atom "quote", a]
+
 lispValP :: Parser LispVal
-lispValP = lispNumberP <|> lispStringP <|> lispAtomP <|> lispListP
+lispValP = lispNumberP <|> lispStringP <|> lispAtomP <|> lispListP <|> lispQuotedP
 
 -- atomP :: Parser LispVal
 -- atomP str = fmap transf $ letterP str *> manyP
