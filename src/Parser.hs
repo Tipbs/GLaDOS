@@ -1,66 +1,138 @@
-module Parser (parseChar, parseAnyChar, parseOr, parseAnd, parseAndWith, parseMany, parseSome) where
-import Data.Maybe (isJust, fromJust, maybeToList)
-import Data.List (unfoldr)
+{-# LANGUAGE InstanceSigs #-}
+module Parser (LispVal (Atom, List, DottedList, Number, String, Bool), lispValP, charP, stringP, Parser (runParser)) where
+import Control.Applicative (Alternative (empty, some, many), (<|>))
+import Data.Char (isDigit, isLetter, isSpace)
 
-type Parser a = String -> Maybe (a, String)
+data LispVal = Atom String
+             | List [LispVal]
+             | DottedList [LispVal] LispVal
+             | Number Integer
+             | String String
+             | Bool Bool
+             deriving (Eq)
+instance Show LispVal where show = showVal
 
-parseChar :: Char -> Parser Char
-parseChar _ "" = Nothing
-parseChar ch (x: xs)
-    | ch == x = Just (ch, xs)
-    | otherwise = Nothing
+unwordsList :: [LispVal] -> String
+unwordsList = unwords . map showVal
 
-parseAnyChar :: String -> Parser Char
-parseAnyChar _ "" = Nothing
-parseAnyChar chars (x: xs)
-    | x `elem` chars = Just (x, xs)
-    | otherwise = Nothing
+showVal :: LispVal -> String
+showVal (String contents) = "\"" ++ contents ++ "\""
+showVal (Atom name) = name
+showVal (Number contents) = show contents
+showVal (Bool True) = "#t"
+showVal (Bool False) = "#f"
+showVal (List contents) = "(" ++ unwordsList contents ++ ")"
+showVal (DottedList h t) = "(" ++ unwordsList h ++ " . " ++ showVal t ++ ")"
 
-parseOr :: Parser a -> Parser a -> Parser a
-parseOr p1 p2 str
-    | isJust evaluated = evaluated
-    | otherwise = p2 str
+newtype Parser a = Parser {
+    runParser :: String -> Maybe (a, String)
+}
+
+instance Functor Parser where
+    fmap :: (a -> b) -> Parser a -> Parser b
+    fmap fun (Parser p) = Parser f
+        where
+            f input = do
+                (x, xs) <- p input
+                Just (fun x, xs)
+
+instance Applicative Parser where
+    pure :: a -> Parser a
+    pure x = Parser $ \input -> Just (x, input)
+    (<*>) :: Parser (a -> b) -> Parser a -> Parser b -- voir exemples avec Maybe
+    (Parser p1) <*> (Parser p2) = Parser $ \input -> do
+        (f, inp) <- p1 input
+        (second, inp') <- p2 inp
+        Just (f second, inp')
+
+instance Alternative Parser where
+    empty :: Parser a
+    empty = Parser $ \_ -> Nothing
+    (<|>) :: Parser a -> Parser a -> Parser a
+    (Parser p1) <|> (Parser p2) = Parser $ \input -> p1 input <|> p2 input
+
+charP :: Char -> Parser Char
+charP c = Parser f
     where
-        evaluated = p1 str
+        f (x : xs)
+            | c == x = Just (c, xs)
+            | otherwise = Nothing
+        f [] = Nothing
 
-parseAnd :: Parser a -> Parser b -> Parser (a, b)
-parseAnd p1 p2 str = case evaluated of
-        Nothing -> Nothing
-        Just (parsed, xs) -> case p2 xs of
-            Just (parsed2, xs2) -> Just ((parsed, parsed2), xs2)
-            Nothing -> Nothing
-    where
-        evaluated = p1 str
+stringP :: String -> Parser String
+stringP = traverse charP
 
-parseAndWith :: (a -> b -> c) -> Parser a -> Parser b -> Parser c
-parseAndWith fn p1 p2 str = case evaluated of
-        Nothing -> Nothing
-        Just (parsed, xs) -> case p2 xs of
-            Just (parsed2, xs2) -> Just (fn parsed parsed2, xs2)
-            Nothing -> Nothing
+letterP :: Parser Char
+letterP = Parser f
     where
-        evaluated = p1 str
+        f (x: xs) | isLetter x = Just (x, xs)
+        f _ = Nothing
 
-parseMany :: Parser a -> Parser [a]
-parseMany p1 str = Just (fir, finalStr)
-    where
-        -- taken = takeWhile (/= Nothing) $ iterate p1 (p1 str)
-        rec s = case p1 s of
-            Just (parsed, xs) -> (parsed, xs) : rec xs
-            Nothing -> []
-        recCalculated = rec str
-        fir = map fst recCalculated
-        finalStr = if null recCalculated then str else snd $ last recCalculated
+-- manyP :: Parser [a]
+-- manyP = traverse
 
-parseSome :: Parser a -> Parser [a]
-parseSome p1 str
-    | null recCalculated = Nothing
-    | otherwise = Just (fir, finalStr)
+spanP :: (Char -> Bool) -> Parser String
+spanP f = Parser $ \input -> Just $ span f input
+
+notNull :: Parser [a] -> Parser [a]
+notNull p = Parser $ \input -> do
+            (x, inp) <- runParser p input
+            if null x
+                then Nothing
+                else Just (x, inp)
+
+lispNumberP :: Parser LispVal
+lispNumberP = f <$> notNull (spanP isDigit)
     where
-        -- taken = takeWhile (/= Nothing) $ iterate p1 (p1 str)
-        rec s = case p1 s of
-            Just (parsed, xs) -> (parsed, xs) : rec xs
-            Nothing -> []
-        recCalculated = rec str
-        fir = map fst recCalculated
-        finalStr = if null recCalculated then str else snd $ last recCalculated
+        f d = Number $ read d
+
+stringLiteral :: Parser String
+stringLiteral = spanP (/= '\"')
+
+lispStringP :: Parser LispVal
+lispStringP = String <$> (charP '\"' *> stringLiteral <* charP '\"')
+
+oneOfP :: [Char] -> Parser Char
+oneOfP ch = Parser f
+    where
+        f (x: xs) | x `elem` ch = Just (x, xs)
+        f _ = Nothing
+
+symbolP :: Parser Char
+symbolP = oneOfP "!#$%&|*+-/:<=>?@^_~"
+
+lispAtomP :: Parser LispVal
+lispAtomP = f <$> validAtom
+    where
+        validAtom = some (symbolP <|> letterP)
+        f a = case a of
+            "#t" -> Bool True
+            "#f" -> Bool False
+            _ -> Atom a
+
+skipManyP :: (Char -> Bool) -> Parser [Char]
+skipManyP = spanP
+
+sepByP :: Parser a -> Parser b -> Parser [b]
+sepByP sep element = many (sep *> element <* sep)
+
+lispListP :: Parser LispVal
+lispListP = List <$> (charP '(' *> elements <* charP ')')
+    where
+        elements = sepByP sep lispValP
+        sep = skipManyP isSpace
+
+lispQuotedP :: Parser LispVal
+lispQuotedP = f <$> (charP '\'' *> lispValP)
+    where
+        f a = List [Atom "quote", a]
+
+lispValP :: Parser LispVal
+lispValP = lispNumberP <|> lispStringP <|> lispAtomP <|> lispListP <|> lispQuotedP
+
+-- atomP :: Parser LispVal
+-- atomP str = fmap transf $ letterP str *> manyP
+--     where
+--         transf "#t" = Bool True
+--         transf "#f" = Bool False
+--         transf atom = Atom atom
