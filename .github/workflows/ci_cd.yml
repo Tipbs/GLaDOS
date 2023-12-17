@@ -30,12 +30,11 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-
       - name: Run stack test
-          shell: bash
-          run: |
-            stack test
-            exit $?
+        shell: bash
+        run: |
+          stack test
+          exit $?
 
   mirroring_to_github:
     name: Mirror to Epitech's github repository
