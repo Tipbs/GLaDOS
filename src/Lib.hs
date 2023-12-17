@@ -1,40 +1,43 @@
 module Lib (readExpr, eval, trapError, extractValue) where
-import Text.ParserCombinators.Parsec
-    ( char,
-      digit,
-      letter,
-      noneOf,
-      oneOf,
-      space,
-      endBy,
-      many1,
-      sepBy,
-      skipMany1,
-      (<|>),
-      many,
-      parse,
-      try,
-      ParseError,
-      Parser )
+-- import Text.ParserCombinators.Parsec
+--     ( char,
+--       digit,
+--       letter,
+--       noneOf,
+--       oneOf,
+--       space,
+--       endBy,
+--       many1,
+--       sepBy,
+--       skipMany1,
+--       (<|>),
+--       many,
+--       parse,
+--       try,
+--       ParseError,
+--       Parser )
 import Control.Monad.Except (MonadError(catchError, throwError))
+import Parser (lispValP, Parser (runParser), LispVal (Atom, List, DottedList, Number, String, Bool))
 
-data LispVal = Atom String
-             | List [LispVal]
-             | DottedList [LispVal] LispVal
-             | Number Integer
-             | String String
-             | Bool Bool
-instance Show LispVal where show = showVal
+-- data LispVal = Atom String
+--              | List [LispVal]
+--              | DottedList [LispVal] LispVal
+--              | Number Integer
+--              | String String
+--              | Bool Bool
+-- instance Show LispVal where show = showVal
 
 data LispError = NumArgs Integer [LispVal]
-               | TypeMismatch String LispVal
-               | Parser ParseError
-               | BadSpecialForm String LispVal
-               | NotFunction String String
-               | UnboundVar String String
+                | TypeMismatch String LispVal
+                | BadSpecialForm String LispVal
+                | Parser String
+                | NotFunction String String
+                | UnboundVar String String
 instance Show LispError where show = showError
 
 type ThrowsError = Either LispError -- on donne que la première partie du Either, le reste doit-être passé au type
+
+type Env = [(String, LispVal)]
 
 trapError :: (MonadError e m, Show e) => m String -> m String
 trapError action = catchError action (return . show)
@@ -52,58 +55,11 @@ showError (TypeMismatch expected found) = "Invalid type: expected " ++ expected
                                        ++ ", found " ++ show found
 showError (Parser parseErr)             = "Parse error at " ++ show parseErr
 
-symbol :: Parser Char
-symbol = oneOf "!#$%&|*+-/:<=>?@^_~"
-
-spaces :: Parser ()
-spaces = skipMany1 space
-
-parseString :: Parser LispVal
-parseString = do
-    char '"'
-    x <- many (noneOf "\"")
-    char '"'
-    return $ String x
-
-parseAtom :: Parser LispVal
-parseAtom = do
-              first <- letter <|> symbol -- get first letter
-              rest <- many (letter <|> digit <|> symbol) -- apply parser for each letter
-              let atom = first : rest -- combine first and rest
-              return $ case atom of
-                        "#t" -> Bool True
-                        "#f" -> Bool False
-                        _    -> Atom atom
-
-parseNumber :: Parser LispVal
-parseNumber = Number . read <$> many1 digit
-
-parseList :: Parser LispVal
-parseList = List <$> sepBy parseExpr spaces
-
-parseDottedList :: Parser LispVal
-parseDottedList = do
-    h <- endBy parseExpr spaces
-    t <- char '.' >> spaces >> parseExpr
-    return $ DottedList h t
-
-parseQuoted :: Parser LispVal
-parseQuoted = do
-    char '\''
-    x <- parseExpr
-    return $ List [Atom "quote", x]
-
-parseExpr :: Parser LispVal
-parseExpr = parseAtom
-                <|> parseString
-                <|> parseNumber
-                <|> parseQuoted
-                <|> do
-                    char '('
-                    x <- try parseList <|> parseDottedList
-                    char ')'
-                    return x
-
+-- parseDottedList :: Parser LispVal
+-- parseDottedList = do
+--     h <- endBy parseExpr spaces
+--     t <- char '.' >> spaces >> parseExpr
+--     return $ DottedList h t
 
 unwordsList :: [LispVal] -> String
 unwordsList = unwords . map showVal
@@ -241,6 +197,6 @@ eval (List (Atom func : args)) = mapM eval args >>= apply func
 eval badForm = throwError $ BadSpecialForm "Unrecognized special form" badForm
 
 readExpr :: String -> ThrowsError LispVal
-readExpr input = case parse parseExpr "lisp" input of
-    Left err -> throwError $ Parser err
-    Right val -> return val
+readExpr input = case runParser lispValP input of
+   Just (val, "") -> return val
+   _ -> throwError $ Parser "Error while parsing"
