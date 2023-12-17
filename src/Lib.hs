@@ -61,24 +61,6 @@ showError (Parser parseErr)             = "Parse error at " ++ show parseErr
 --     t <- char '.' >> spaces >> parseExpr
 --     return $ DottedList h t
 
--- parseQuoted :: Parser LispVal
--- parseQuoted = do
---     char '\''
---     x <- parseExpr
---     return $ List [Atom "quote", x]
-
--- parseExpr :: Parser LispVal
--- parseExpr = parseAtom
---                 <|> parseString
---                 <|> parseNumber
---                 <|> parseQuoted
---                 <|> do
---                     char '('
---                     x <- try parseList <|> parseDottedList
---                     char ')'
---                     return x
-
-
 unwordsList :: [LispVal] -> String
 unwordsList = unwords . map showVal
 
