@@ -1,7 +1,8 @@
 module Main (main) where
 import System.Environment (getArgs)
-import Lib (readExpr, eval, trapError, extractValue, LispVal)
+import Lib (readExpr, eval, extractValue, trapError)
 import System.IO (hFlush, stdout, hPutStrLn, stderr)
+import Parser (LispVal)
 
 readLine :: String -> IO String
 readLine str = putStr str >> hFlush stdout >> getLine

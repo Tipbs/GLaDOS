@@ -1,5 +1,5 @@
 {-# LANGUAGE InstanceSigs #-}
-module Parser (LispVal, lispValP, charP, stringP, Parser (runParser)) where
+module Parser (LispVal (Atom, List, DottedList, Number, String, Bool), lispValP, charP, stringP, Parser (runParser)) where
 import Control.Applicative (Alternative (empty, some, many), (<|>))
 import Data.Char (isDigit, isLetter, isSpace)
 
@@ -9,7 +9,20 @@ data LispVal = Atom String
              | Number Integer
              | String String
              | Bool Bool
-             deriving (Show, Eq)
+             deriving (Eq)
+instance Show LispVal where show = showVal
+
+unwordsList :: [LispVal] -> String
+unwordsList = unwords . map showVal
+
+showVal :: LispVal -> String
+showVal (String contents) = "\"" ++ contents ++ "\""
+showVal (Atom name) = name
+showVal (Number contents) = show contents
+showVal (Bool True) = "#t"
+showVal (Bool False) = "#f"
+showVal (List contents) = "(" ++ unwordsList contents ++ ")"
+showVal (DottedList h t) = "(" ++ unwordsList h ++ " . " ++ showVal t ++ ")"
 
 newtype Parser a = Parser {
     runParser :: String -> Maybe (a, String)
