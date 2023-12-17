@@ -114,7 +114,7 @@ skipManyP :: (Char -> Bool) -> Parser [Char]
 skipManyP = spanP
 
 sepByP :: Parser a -> Parser b -> Parser [b]
-sepByP sep element = many (element <* sep)
+sepByP sep element = many (sep *> element <* sep)
 
 lispListP :: Parser LispVal
 lispListP = List <$> (charP '(' *> elements <* charP ')')
