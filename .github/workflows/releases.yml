@@ -11,7 +11,7 @@ on:
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  BINARY_NAME: testReleases-exe
+  BINARY_NAME: glados-exe
 
 jobs:
   release:
