@@ -9,8 +9,8 @@ import Prelude
 -- ENCODING TO BINARY
 
 pushBool :: Bool -> [Bool]
-pushBool True = [False, False, False, False]
-pushBool _ = [False, False, False, True]
+pushBool True = [False, True, False, False]
+pushBool _ = [False, True, True, False]
 
 numToBoolArr :: Integer -> Int -> Int -> [Bool]
 numToBoolArr _ a b | a == b = []
@@ -30,7 +30,7 @@ strToBoolArr :: String -> [Bool]
 strToBoolArr = foldr (\ a -> (++) (numToBoolArr2 (ord a) 0 8)) []
 
 pushString :: String -> [Bool]
-pushString str = [False, True] ++ numToBoolArr (getStrLen str) 0 12 ++ strToBoolArr str  -- 8 = Max 256 char. 12 = Max 4096 Char. 16 = Max 65536 Char (Unicode may count more than 1)
+pushString str = [False, False] ++ numToBoolArr (getStrLen str) 0 12 ++ strToBoolArr str  -- 8 = Max 256 char. 12 = Max 4096 Char. 16 = Max 65536 Char (Unicode may count more than 1)
 
 pushAtom :: String -> [Bool]
 pushAtom a = [True, True] ++ numToBoolArr (getStrLen a) 0 4 ++ strToBoolArr a
@@ -39,7 +39,7 @@ compileToBytecode :: LispVal -> [Bool]
 compileToBytecode (Atom ato) = pushAtom ato
 compileToBytecode (List exprs) = numToBoolArr2 (ord '[') 0 8 ++ concatMap compileToBytecode exprs ++ numToBoolArr2 (ord ']') 0 8
 compileToBytecode (DottedList exprs lasto) = numToBoolArr2 (ord '{') 0 8 ++ concatMap compileToBytecode exprs 
-    ++ numToBoolArr2 (ord '.') 0 8 ++ compileToBytecode lasto ++ numToBoolArr2 (ord '}') 0 8
+    ++ compileToBytecode lasto ++ numToBoolArr2 (ord '}') 0 8
 compileToBytecode (Number num) = pushNumber num
 compileToBytecode (String str) = pushString str
 compileToBytecode (Bool bol) = pushBool bol
