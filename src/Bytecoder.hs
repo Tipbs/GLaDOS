@@ -1,9 +1,12 @@
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
 module Bytecoder (compileToBytecode, showBytesGlobal) where
 import Lib (LispVal(Atom, List, Number, String, Bool, DottedList))
 import Data.Bits
 import Data.Int
 import Data.Char
 import Prelude
+
+-- ENCODING TO BINARY
 
 pushBool :: Bool -> [Bool]
 pushBool True = [False, False, False, False]
@@ -41,6 +44,21 @@ compileToBytecode (Number num) = pushNumber num
 compileToBytecode (String str) = pushString str
 compileToBytecode (Bool bol) = pushBool bol
 
+fromBoolAToString :: [Bool] -> String
+fromBoolAToString [] = ""
+fromBoolAToString (True:rest) = "1" ++ fromBoolAToString rest
+fromBoolAToString (False:rest) = "0" ++ fromBoolAToString rest
+
+-- DECODING FROM BINARY
+
+binaryToBoolList :: String -> [Bool]
+binaryToBoolList = map (== '1')
+
+-- decompileFromBytecode :: String -> LispVal
+-- decompileFromBytecode "01111011":rest = (Number 4)
+
+-- OUTPUT TESTING
+
 showBytesGlobal :: [Bool] -> String
 showBytesGlobal li = "[" ++ showBytes li ++ " ]"
 
@@ -54,4 +72,4 @@ showBit True = "1"
 showBit False = "0"
 
 test :: LispVal -> String
-test l = showBytesGlobal ( compileToBytecode l )
+test l = showBytesGlobal ( binaryToBoolList (fromBoolAToString ( compileToBytecode l )))
