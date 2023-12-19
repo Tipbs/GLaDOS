@@ -24,3 +24,4 @@ cabal.project.local~
 compile_commands.json
 glados-exe
 glados-exe.cabal
+book/
