@@ -1,0 +1,6 @@
+[book]
+authors = ["MizuriGit"]
+language = "en"
+multilingual = false
+src = "src"
+title = "Documentation of our super language"
