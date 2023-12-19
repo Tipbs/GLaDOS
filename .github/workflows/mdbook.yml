@@ -42,7 +42,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v2
         with:
-          path: ./book/language-doc
+          path: ./docs/language-doc/book
 
   # Deployment job
   deploy:
