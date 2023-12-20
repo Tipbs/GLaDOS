@@ -190,13 +190,24 @@ apply func args = maybe (throwError $ NotFunction "Unrecognized primitive functi
         lispList = map fst args
 
 liftEnv :: Env -> ThrowsError LispVal -> ThrowsError (LispVal, Env) 
-liftEnv env (Left err) = throwError err
+liftEnv _ (Left err) = throwError err
 liftEnv env (Right val) = return (val, env)
 
 defineVar :: String -> (LispVal, Env) -> ThrowsError (LispVal, Env)
 defineVar var (form, env) = case lookup var env of
-    Just alreadyExist -> throwError $ AlreadyDefinedVar $ "Variable already defined: " ++ var
+    Just _ -> throwError $ AlreadyDefinedVar $ "Variable already defined: " ++ var
     Nothing -> return (form, (var, form) : env)
+
+removeItem :: Env -> String -> Env
+removeItem [] _ = []
+removeItem ((x,y):xs) var
+    | x == var = xs
+    | otherwise = (x,y): removeItem xs var
+
+setVar :: String -> (LispVal, Env) -> ThrowsError (LispVal, Env)
+setVar var (form, env) = case lookup var env of
+    Nothing -> throwError $ UnboundVar "Unbound variable" var
+    Just _ -> return (form, (var, form) : removeItem env var)
 
 eval :: Env -> LispVal -> ThrowsError (LispVal, Env)
 eval env val@(String _) = return (val, env) -- @ totalement op, permet de récupérer toute la variable malgré pattern matching
@@ -205,15 +216,15 @@ eval env val@(Bool _) = return (val, env)
 eval env (Atom varname) = parsed env (lookup varname env)
     where
         parsed :: Env -> Maybe LispVal -> ThrowsError (LispVal, Env)
-        parsed e Nothing = throwError $ UnboundVar "Unbound variable" varname
+        parsed _ Nothing = throwError $ UnboundVar "Unbound variable" varname
         parsed e (Just var) = return (var, e)
-
 eval env (List [Atom "quote", val]) = return (val, env)
 eval env (List [Atom "if", cond, itrue, ifalse]) =
      do result <- eval env cond
         case result of
              (Bool False, _) -> eval env ifalse
              _  -> eval env itrue
+eval env (List [Atom "set", Atom var, form]) = eval env form >>= setVar var
 eval env (List [Atom "define", Atom var, form]) = eval env form >>= defineVar var
 eval env (List (Atom func : args)) = mapM (eval env) args >>= liftEnv env . apply func
 eval env badForm = throwError $ BadSpecialForm "Unrecognized special form" badForm
