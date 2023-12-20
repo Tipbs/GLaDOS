@@ -22,5 +22,6 @@ cabal.project.local~
 .HTF/
 .ghc.environment.*
 compile_commands.json
-glados-exe
+book/
+glados
 glados-exe.cabal

@@ -1,6 +1,6 @@
 {-# LANGUAGE InstanceSigs #-}
-module Parser (LispVal (Atom, List, DottedList, Number, String, Bool, LangFunc, Func), lispValP, charP, stringP, Parser (runParser),
-    LispError (NumArgs, TypeMismatch, BadSpecialForm, NotFunction, UnboundVar, ParserErr), ThrowsError) where
+module Parser (LispVal (..), lispValP, charP, stringP, Parser (runParser),
+    LispError (..), ThrowsError) where
 import Control.Applicative (Alternative (empty, some, many), (<|>))
 import Data.Char (isDigit, isLetter, isSpace)
 
@@ -21,6 +21,7 @@ data LispError = NumArgs Integer [LispVal]
                 | NotFunction String String
                 | UnboundVar String String
                 | ParserErr String
+                | AlreadyDefinedVar String
 instance Show LispError where show = showError
 
 type ThrowsError = Either LispError -- on donne que la première partie du Either, le reste doit-être passé au type
@@ -29,12 +30,14 @@ type Env = [(String, LispVal)]
 
 showError :: LispError -> String
 showError (UnboundVar message varname)  = message ++ ": " ++ varname
+showError (AlreadyDefinedVar message)  = message
 showError (BadSpecialForm message form) = message ++ ": " ++ show form
 showError (NotFunction message func)    = message ++ ": " ++ show func
 showError (NumArgs expected found)      = "Expected " ++ show expected
                                        ++ " args; found values " ++ unwordsList found
 showError (TypeMismatch expected found) = "Invalid type: expected " ++ expected
                                        ++ ", found " ++ show found
+showError (ParserErr parseErr)             = "Parse error at " ++ show parseErr
 
 unwordsList :: [LispVal] -> String
 unwordsList = unwords . map showVal
