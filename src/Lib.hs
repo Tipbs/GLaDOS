@@ -1,59 +1,12 @@
-module Lib (readExpr, eval, trapError, extractValue) where
--- import Text.ParserCombinators.Parsec
---     ( char,
---       digit,
---       letter,
---       noneOf,
---       oneOf,
---       space,
---       endBy,
---       many1,
---       sepBy,
---       skipMany1,
---       (<|>),
---       many,
---       parse,
---       try,
---       ParseError,
---       Parser )
+module Lib (readExpr, eval, trapError, extractValue, ThrowsError) where
 import Control.Monad.Except (MonadError(catchError, throwError))
-import Parser (lispValP, Parser (runParser), LispVal (Atom, List, DottedList, Number, String, Bool))
-
--- data LispVal = Atom String
---              | List [LispVal]
---              | DottedList [LispVal] LispVal
---              | Number Integer
---              | String String
---              | Bool Bool
--- instance Show LispVal where show = showVal
-
-data LispError = NumArgs Integer [LispVal]
-                | TypeMismatch String LispVal
-                | BadSpecialForm String LispVal
-                | Parser String
-                | NotFunction String String
-                | UnboundVar String String
-instance Show LispError where show = showError
-
-type ThrowsError = Either LispError -- on donne que la première partie du Either, le reste doit-être passé au type
-
-type Env = [(String, LispVal)]
+import Parser (lispValP, Parser (runParser), LispVal (Atom, List, DottedList, Number, String, Bool, Func, LangFunc), ThrowsError, LispError (ParserErr, BadSpecialForm, NumArgs, TypeMismatch))
 
 trapError :: (MonadError e m, Show e) => m String -> m String
 trapError action = catchError action (return . show)
 
 extractValue :: ThrowsError a -> a
 extractValue (Right val) = val
-
-showError :: LispError -> String
-showError (UnboundVar message varname)  = message ++ ": " ++ varname
-showError (BadSpecialForm message form) = message ++ ": " ++ show form
-showError (NotFunction message func)    = message ++ ": " ++ show func
-showError (NumArgs expected found)      = "Expected " ++ show expected
-                                       ++ " args; found values " ++ unwordsList found
-showError (TypeMismatch expected found) = "Invalid type: expected " ++ expected
-                                       ++ ", found " ++ show found
-showError (Parser parseErr)             = "Parse error at " ++ show parseErr
 
 -- parseDottedList :: Parser LispVal
 -- parseDottedList = do
@@ -73,7 +26,6 @@ showVal (Bool False) = "#f"
 showVal (List contents) = "(" ++ unwordsList contents ++ ")"
 showVal (DottedList h t) = "(" ++ unwordsList h ++ " . " ++ showVal t ++ ")"
 
--- comprendre unpackNum
 unpackNum :: LispVal -> ThrowsError Integer
 unpackNum (Number n) = return n
 unpackNum (String n) = let parsed = reads n :: [(Integer, String)] in
@@ -178,10 +130,11 @@ primitives = [("+", numericBinop (+)),
               ("eqv?", eqv)
             ]
 
-apply :: String -> [LispVal] -> ThrowsError LispVal
-apply func args = maybe (throwError $ NotFunction "Unrecognized primitive function args" func)
-                        ($ args)
-                        (lookup func primitives)
+apply :: LispVal -> [LispVal] -> ThrowsError LispVal
+apply temp@(Func params body) args = return temp
+apply (LangFunc func) args = func args
+                        -- ($ args)
+                        -- (lookup func primitives)
 
 eval :: LispVal -> ThrowsError LispVal
 eval val@(String _) = return val -- @ totalement op, permet de récupérer toute la variable malgré pattern matching
@@ -193,10 +146,10 @@ eval (List [Atom "if", cond, itrue, ifalse]) =
         case result of
              Bool False -> eval ifalse
              _  -> eval itrue
-eval (List (Atom func : args)) = mapM eval args >>= apply func
+eval (List (func : args)) = mapM eval args >>= apply func
 eval badForm = throwError $ BadSpecialForm "Unrecognized special form" badForm
 
 readExpr :: String -> ThrowsError LispVal
 readExpr input = case runParser lispValP input of
    Just (val, "") -> return val
-   _ -> throwError $ Parser "Error while parsing"
+   _ -> throwError $ ParserErr "Error while parsing"

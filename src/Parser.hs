@@ -1,5 +1,6 @@
 {-# LANGUAGE InstanceSigs #-}
-module Parser (LispVal (Atom, List, DottedList, Number, String, Bool), lispValP, charP, stringP, Parser (runParser)) where
+module Parser (LispVal (Atom, List, DottedList, Number, String, Bool, LangFunc, Func), lispValP, charP, stringP, Parser (runParser),
+    LispError (NumArgs, TypeMismatch, BadSpecialForm, NotFunction, UnboundVar, ParserErr), ThrowsError) where
 import Control.Applicative (Alternative (empty, some, many), (<|>))
 import Data.Char (isDigit, isLetter, isSpace)
 
@@ -9,8 +10,31 @@ data LispVal = Atom String
              | Number Integer
              | String String
              | Bool Bool
-             deriving (Eq)
+             | LangFunc ([LispVal] -> ThrowsError LispVal)
+             | Func [String] [LispVal] -- args / body
+            --  deriving (Eq)
 instance Show LispVal where show = showVal
+
+data LispError = NumArgs Integer [LispVal]
+                | TypeMismatch String LispVal
+                | BadSpecialForm String LispVal
+                | NotFunction String String
+                | UnboundVar String String
+                | ParserErr String
+instance Show LispError where show = showError
+
+type ThrowsError = Either LispError -- on donne que la première partie du Either, le reste doit-être passé au type
+
+type Env = [(String, LispVal)]
+
+showError :: LispError -> String
+showError (UnboundVar message varname)  = message ++ ": " ++ varname
+showError (BadSpecialForm message form) = message ++ ": " ++ show form
+showError (NotFunction message func)    = message ++ ": " ++ show func
+showError (NumArgs expected found)      = "Expected " ++ show expected
+                                       ++ " args; found values " ++ unwordsList found
+showError (TypeMismatch expected found) = "Invalid type: expected " ++ expected
+                                       ++ ", found " ++ show found
 
 unwordsList :: [LispVal] -> String
 unwordsList = unwords . map showVal
@@ -47,7 +71,7 @@ instance Applicative Parser where
 
 instance Alternative Parser where
     empty :: Parser a
-    empty = Parser $ \_ -> Nothing
+    empty = Parser $ const Nothing
     (<|>) :: Parser a -> Parser a -> Parser a
     (Parser p1) <|> (Parser p2) = Parser $ \input -> p1 input <|> p2 input
 
