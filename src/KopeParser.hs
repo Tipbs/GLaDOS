@@ -4,6 +4,7 @@ import Control.Applicative
 import Data.Char
 
 data KopeVal = KopeNull
+  | KopeAtom String
   | KopeBool Bool
   | KopeNumber Integer
   | KopeString String
@@ -44,8 +45,8 @@ charP a = Parser $ \input ->
 stringP :: String -> Parser String
 stringP = sequenceA . map charP
 
-boolP :: Parser KopeVal
-boolP = f <$> (stringP "true" <|> stringP "false")
+kopeBool :: Parser KopeVal
+kopeBool = f <$> (stringP "true" <|> stringP "false")
   where
     f "true" = KopeBool True
     f "false" = KopeBool True
@@ -64,7 +65,24 @@ notNull (Parser p) = Parser $ \input -> do
     False -> Nothing
     True -> Just (input', x)
 
-numberP :: Parser KopeVal
-numberP = f <$> spanP isDigit
+kopeNumber :: Parser KopeVal
+kopeNumber = f <$> spanP isDigit
   where
     f num = KopeNumber $ read num
+
+ws :: Parser String
+ws = spanP isSpace
+
+stringLiteral :: Parser String
+stringLiteral = spanP (/= ' ')
+
+kopeValue :: Parser KopeVal
+kopeValue = kopeBool <|> kopeNumber
+
+varP :: Parser KopeVal
+varP = pair
+  where
+    pair =
+      (\var _ value -> KopeArray [KopeString var, value]) <$> stringLiteral <*>
+      (ws *> charP '=' <* ws) <*>
+      kopeValue
