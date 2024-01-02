@@ -17,32 +17,32 @@ data Instructions = Push Value
                   | Call Builtin
                   | Ret
 
-addi :: Stack -> Stack
-addi [] = []
-addi [a] = [a]
-addi (Numerical a:Numerical b:c) = Numerical (a + b):c
-addi st = st
+addi :: Stack -> Either String Stack
+addi [] = Left "Error : Not enough arguments in Add."
+addi [_] = Left "Error : Not enough arguments in Add."
+addi (Numerical a:Numerical b:c) = Right (Numerical (a + b):c)
+addi _ = Left "Error : One argument is a wrong type in Add."
 
-subs :: Stack -> Stack
-subs [] = []
-subs [a] = [a]
-subs (Numerical a:Numerical b:c) = Numerical (a - b):c
-subs st = st
+subs :: Stack -> Either String Stack
+subs [] = Left "Error : Not enough arguments in Sub."
+subs [_] = Left "Error : Not enough arguments in Sub."
+subs (Numerical a:Numerical b:c) = Right (Numerical (a - b):c)
+subs _ = Left "Error : One argument is a wrong type in Sub."
 
-mult :: Stack -> Stack
-mult [] = []
-mult [a] = [a]
-mult (Numerical a:Numerical b:c) = Numerical (a * b):c
-mult st = st
+mult :: Stack -> Either String Stack
+mult [] = Left "Error : Not enough arguments in Mult."
+mult [_] = Left "Error : Not enough arguments in Mult."
+mult (Numerical a:Numerical b:c) = Right (Numerical (a * b):c)
+mult _ = Left "Error : One argument is a wrong type in Mult."
 
-divi :: Stack -> Stack
-divi [] = []
-divi [a] = [a]
-divi (Numerical a:Numerical 0:c) = Numerical a:Numerical 0:c
-divi (Numerical a:Numerical b:c) = Numerical (a `div` b):c
-divi st = st
+divi :: Stack -> Either String Stack
+divi [] = Left "Error : Not enough arguments in Div."
+divi [_] = Left "Error : Not enough arguments in Div."
+divi (Numerical _:Numerical 0:_) = Left "Error : Divison by 0."
+divi (Numerical a:Numerical b:c) = Right (Numerical (a `div` b):c)
+divi _ = Left "Error : One argument is a wrong type in Div."
 
-call :: Builtin -> Stack -> Stack
+call :: Builtin -> Stack -> Either String Stack
 call Add = addi
 call Sub = subs
 call Mult = mult
@@ -56,8 +56,11 @@ ret [] = Numerical 0
 ret [a] = a
 ret (a:_) = a
 
-exec :: Insts -> Stack -> Value
-exec [] _ = Numerical 0
-exec (Ret:_) st = ret st
+exec :: Insts -> Stack -> Either String Value
+exec [] _ = Left "Error : No return instruction."
+exec (Ret:_) st = Right (ret st)
 exec ((Push val):remain) st = exec remain (push val st)
-exec ((Call bi):remain) st = exec remain (call bi st)
+exec ((Call bi):remain) st = do let res = call bi st
+                                case res of
+                                    Right stac -> exec remain stac
+                                    Left str -> Left str
