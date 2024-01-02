@@ -10,3 +10,4 @@
 	- [Conditions](./conditions.md)
 	- [If Statements](./if_statements.md)
 	- [Lists](./lists.md)
+	- [Loops](./loops.md)

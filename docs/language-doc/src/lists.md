@@ -2,6 +2,12 @@
 
 Lists are used to store multiple arguments in 1 variable, in the format of an array.
 
+```
+var littleList = [1, "salut", "hey"];
+```
+
+This creates an array containing the number 1, the string "salut" and the string "hey"
+
 #### **`main.???`**
 ```
 int main(argc, argv)
