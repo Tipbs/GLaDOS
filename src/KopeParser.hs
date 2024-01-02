@@ -8,6 +8,8 @@ data KopeVal = KopeNull
   | KopeNumber Integer
   | KopeString String
   | KopeArray [KopeVal]
+  | KopeFunc { name :: String, params :: [String],
+               body :: [KopeVal] }
   deriving (Show, Eq)
 
 -- no error reporting
@@ -32,13 +34,11 @@ instance Alternative Parser where
   (Parser p1) <|> (Parser p2) = Parser $ \input ->
     p1 input <|> p2 input
   
-
 charP :: Char -> Parser Char
 charP a = Parser $ \input ->
   case input of
     (x:xs) | x == a -> Just (xs, a)
     _ -> Nothing
-
 
 -- [Char] -> [Parser Char] -> Parser [Char]
 stringP :: String -> Parser String
@@ -50,3 +50,21 @@ boolP = f <$> (stringP "true" <|> stringP "false")
     f "true" = KopeBool True
     f "false" = KopeBool True
     f _ = undefined
+
+-- (a -> Bool) -> [a] -> Parser (String, [a])
+spanP :: (Char -> Bool) -> Parser String
+spanP f = Parser $ \input -> do
+  let (valid, rest) = span f input
+  Just (rest, valid)
+
+notNull :: Parser [a] -> Parser [a]
+notNull (Parser p) = Parser $ \input -> do
+  (input', x) <- p input
+  case null x of
+    False -> Nothing
+    True -> Just (input', x)
+
+numberP :: Parser KopeVal
+numberP = f <$> spanP isDigit
+  where
+    f num = KopeNumber $ read num
