@@ -3,6 +3,15 @@ import Parser (LispVal (..))
 import Lib (Env)
 import Numeric (showHex)
 
+data WasmOp = LocalSet LispVal | LocalGet LispVal | I32add LispVal LispVal | I32sub LispVal LispVal
+    deriving (Eq)
+
+wasmOpToCode :: WasmOp -> Int
+wasmOpToCode (LocalSet val) = 0x21
+wasmOpToCode (LocalGet val) = 0x20
+wasmOpToCode (I32add a b) = 0x6a
+wasmOpToCode (I32sub a b) = 0x6b
+
 magic :: [Integer]
 magic = [0x00, 0x61, 0x73, 0x6d]
 
@@ -83,7 +92,12 @@ version = [0x01, 0x00, 0x00, 0x00]
 buildSectionHeader :: Int -> Int -> Int -> [Int]
 buildSectionHeader code size nb = [code, size, nb]
 
--- debugHex $ buildSectionType [Func "add" ["15", "5"] [Number 5]]
+-- if the signature already exist it should not push the result
+buildFunctionType :: LispVal -> [Int] -- pour le moment le type est forcé i32
+buildFunctionType (Func _ p _) = [0x60, length p] ++ map (const 0x7f) p ++ [0x01, 0x7f] -- le dernier tableau correspondrait au return
+buildFunctionType _ = []
+
+-- ghci > debugHex $ buildSectionType [Func "add" ["15", "5"] [Number 5]]
 buildSectionType :: [LispVal] -> [Int]
 buildSectionType functions = buildSectionHeader 0x01 section_size (length functions) ++ concat functions_types
     where
@@ -94,14 +108,15 @@ buildSectionType functions = buildSectionHeader 0x01 section_size (length functi
 debugHex :: [Int] -> [String]
 debugHex = map (`showHex` "")
 
--- if the signature already exist it should not push the result
-buildFunctionType :: LispVal -> [Int] -- pour le moment le type est forcé i32
-buildFunctionType (Func _ p _) = [0x60, length p] ++ map (const 0x7f) p ++ [0x01, 0x7f] -- le dernier tableau correspondrait au return
-buildFunctionType _ = []
-
+-- ; section "Function" (3)
+-- 0000011: 03                                        ; section code
+-- 0000012: 02                                        ; section size (guess)
+-- 0000013: 01                                        ; num functions
+-- 0000014: 00                                        ; function 0 signature index
 -- should get all functions and assignate them to their index
-buildFunctionSec :: Env -> LispVal -> [Int]
-buildFunctionSec env val = []
+buildFunctionSec :: [LispVal] -> [Int]
+buildFunctionSec functions = []
+
 
 buildNumber :: LispVal -> [Int]
 buildNumber (Number nb) = []
