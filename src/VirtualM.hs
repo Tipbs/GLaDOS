@@ -3,6 +3,7 @@ module VirtualM () where
 
 type Stack = [Value]
 type Insts = [Instructions]
+type Args = [Value]
 
 data Value = Numerical Int
            | Boolean Bool
@@ -17,6 +18,7 @@ data Builtin = Add
              | High
 
 data Instructions = Push Value
+                  | PushArg Int
                   | Call Builtin
                   | JumpIfFalse Int
                   | JumpIfTrue Int
@@ -93,30 +95,42 @@ jumpfalse (_:remai) num st@((Boolean False):_) = jumpfalse remai (num - 1) st
 push :: Value -> Stack -> Stack
 push val st = val:st
 
+pusharg :: Args -> Int -> Stack -> Either String Stack
+pusharg [] _ _ = Left "Error : Not enough arguments."
+pusharg (a:_) 0 st = Right (a:st)
+pusharg (_:b) num st = pusharg b (num - 1) st
+
 ret :: Stack -> Value
 ret [] = Numerical 0
 ret [a] = a
 ret (a:_) = a
 
-exec :: Insts -> Stack -> Either String Value
-exec [] _ = Left "Error : No return instruction."
-exec (Ret:_) st = Right (ret st)
-exec ((Push val):remain) st = exec remain (push val st)
-exec li@((JumpIfFalse int):_) st = do {
+exec :: Args -> Insts -> Stack -> Either String Value
+exec _ [] _ = Left "Error : No return instruction."
+exec _ (Ret:_) st = Right (ret st)
+exec arg ((Push val):remain) st = exec arg remain (push val st)
+exec arg ((PushArg int):remain) st = do {
+                                    let res = pusharg arg int st in
+                                        case res of
+                                            Right inst -> exec arg remain inst
+                                            Left str -> Left str
+                                            }
+exec arg li@((JumpIfFalse int):_) st = do {
                                     let res = jumpfalse li int st in
                                         case res of
-                                            Right inst -> exec inst st
+                                            Right inst -> exec arg inst st
                                             Left str -> Left str
                                             }
-exec li@((JumpIfTrue int):_) st = do {
+exec arg li@((JumpIfTrue int):_) st = do {
                                     let res = jumptrue li int st in
                                         case res of
-                                            Right inst -> exec inst st
+                                            Right inst -> exec arg inst st
                                             Left str -> Left str
                                             }
-exec ((Call bi):remain) st = do {
+exec arg ((Call bi):remain) st = do {
                                 let res = call bi st in
                                     case res of
-                                        Right stac -> exec remain stac
+                                        Right stac -> exec arg remain stac
                                         Left str -> Left str
                                         }
+
