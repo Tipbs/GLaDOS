@@ -5,14 +5,14 @@ import Numeric (showHex)
 import Data.Binary (encode, Word8)
 import qualified Data.ByteString.Lazy as BL
 
-data WasmOp = LocalSet LispVal | LocalGet LispVal | I32add LispVal LispVal | I32sub LispVal LispVal
+data WasmOp = LocalSet Int | LocalGet Int | I32add | I32sub
     deriving (Eq)
 
 wasmOpToCode :: WasmOp -> [Word8]
-wasmOpToCode (LocalSet val) = [0x21]
-wasmOpToCode (LocalGet val) = [0x20]
-wasmOpToCode (I32add a b) = [0x6a]
-wasmOpToCode (I32sub a b) = [0x6b]
+wasmOpToCode (LocalSet val) = 0x21 : buildNumber val
+wasmOpToCode (LocalGet val) = 0x20 : buildNumber val
+wasmOpToCode I32add = [0x6a]
+wasmOpToCode I32sub = [0x6b]
 
 magic :: [Word8]
 magic = [0x00, 0x61, 0x73, 0x6d]
