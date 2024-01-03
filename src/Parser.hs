@@ -10,7 +10,7 @@ data LispVal = Atom String
              | String String
              | Bool Bool
              | Func { name :: String, params :: [String],
-               body :: [LispVal]}
+               body :: [LispVal] }
              deriving (Eq)
 instance Show LispVal where show = showVal
 
