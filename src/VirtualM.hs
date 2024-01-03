@@ -12,9 +12,14 @@ data Builtin = Add
              | Sub
              | Mult
              | Div
+             | Eq
+             | Less
+             | High
 
 data Instructions = Push Value
                   | Call Builtin
+                  | JumpIfFalse Int
+                  | JumpIfTrue Int
                   | Ret
 
 addi :: Stack -> Either String Stack
@@ -35,6 +40,24 @@ mult [_] = Left "Error : Not enough arguments in Mult."
 mult (Numerical a:Numerical b:c) = Right (Numerical (a * b):c)
 mult _ = Left "Error : One argument is a wrong type in Mult."
 
+eq :: Stack -> Either String Stack
+eq [] = Left "Error : Not enough arguments in Eq."
+eq [_] = Left "Error : Not enough arguments in Eq."
+eq (Numerical a:Numerical b:c) = Right (Boolean (a == b):c)
+eq _ = Left "Error : One argument is a wrong type in Eq."
+
+less :: Stack -> Either String Stack
+less [] = Left "Error : Not enough arguments in Less."
+less [_] = Left "Error : Not enough arguments in Less."
+less (Numerical a:Numerical b:c) = Right (Boolean (a < b):c)
+less _ = Left "Error : One argument is a wrong type in Less."
+
+high :: Stack -> Either String Stack
+high [] = Left "Error : Not enough arguments in High."
+high [_] = Left "Error : Not enough arguments in High."
+high (Numerical a:Numerical b:c) = Right (Boolean (a > b):c)
+high _ = Left "Error : One argument is a wrong type in High."
+
 divi :: Stack -> Either String Stack
 divi [] = Left "Error : Not enough arguments in Div."
 divi [_] = Left "Error : Not enough arguments in Div."
@@ -47,6 +70,25 @@ call Add = addi
 call Sub = subs
 call Mult = mult
 call Div = divi
+call Eq = eq
+call Less = less
+call High = high
+
+jumptrue :: Insts -> Int -> Stack -> Either String Insts
+jumptrue _ _ [] = Left "Error : Not enough argument to jump."
+jumptrue [] _ _ = Left "Error : Not enough instructions to jump."
+jumptrue _ _ ((Numerical _):_) = Left "Error : Argument is not a boolean."
+jumptrue rema _ ((Boolean False):_) = Right rema
+jumptrue (_:remai) 0 ((Boolean True):_) = Right remai
+jumptrue (_:remai) num st@((Boolean True):_) = jumptrue remai (num - 1) st
+
+jumpfalse :: Insts -> Int -> Stack -> Either String Insts
+jumpfalse _ _ [] = Left "Error : Not enough argument to jump."
+jumpfalse [] _ _ = Left "Error : Not enough instructions to jump."
+jumpfalse _ _ ((Numerical _):_) = Left "Error : Argument is not a boolean."
+jumpfalse (_:rema) _ ((Boolean True):_) = Right rema
+jumpfalse (_:remai) 0 ((Boolean False):_) = Right remai
+jumpfalse (_:remai) num st@((Boolean False):_) = jumpfalse remai (num - 1) st
 
 push :: Value -> Stack -> Stack
 push val st = val:st
@@ -60,7 +102,21 @@ exec :: Insts -> Stack -> Either String Value
 exec [] _ = Left "Error : No return instruction."
 exec (Ret:_) st = Right (ret st)
 exec ((Push val):remain) st = exec remain (push val st)
-exec ((Call bi):remain) st = do let res = call bi st
-                                case res of
-                                    Right stac -> exec remain stac
-                                    Left str -> Left str
+exec li@((JumpIfFalse int):_) st = do {
+                                    let res = jumpfalse li int st in
+                                        case res of
+                                            Right inst -> exec inst st
+                                            Left str -> Left str
+                                            }
+exec li@((JumpIfTrue int):_) st = do {
+                                    let res = jumptrue li int st in
+                                        case res of
+                                            Right inst -> exec inst st
+                                            Left str -> Left str
+                                            }
+exec ((Call bi):remain) st = do {
+                                let res = call bi st in
+                                    case res of
+                                        Right stac -> exec remain stac
+                                        Left str -> Left str
+                                        }
