@@ -2,20 +2,22 @@ module Wasm () where
 import Parser (LispVal (..))
 import Lib (Env)
 import Numeric (showHex)
+import Data.Binary (encode, Word8)
+import qualified Data.ByteString.Lazy as BL
 
 data WasmOp = LocalSet LispVal | LocalGet LispVal | I32add LispVal LispVal | I32sub LispVal LispVal
     deriving (Eq)
 
-wasmOpToCode :: WasmOp -> Int
-wasmOpToCode (LocalSet val) = 0x21
-wasmOpToCode (LocalGet val) = 0x20
-wasmOpToCode (I32add a b) = 0x6a
-wasmOpToCode (I32sub a b) = 0x6b
+wasmOpToCode :: WasmOp -> [Word8]
+wasmOpToCode (LocalSet val) = [0x21]
+wasmOpToCode (LocalGet val) = [0x20]
+wasmOpToCode (I32add a b) = [0x6a]
+wasmOpToCode (I32sub a b) = [0x6b]
 
-magic :: [Integer]
+magic :: [Word8]
 magic = [0x00, 0x61, 0x73, 0x6d]
 
-version :: [Integer]
+version :: [Word8]
 version = [0x01, 0x00, 0x00, 0x00]
 
 -- 0000000: 0061 736d                                 ; WASM_BINARY_MAGIC
@@ -89,23 +91,23 @@ version = [0x01, 0x00, 0x00, 0x00]
 -- 000000f: 01                                        ; num results
 -- 0000010: 7f                                        ; i32
 
-buildSectionHeader :: Int -> Int -> Int -> [Int]
-buildSectionHeader code size nb = [code, size, nb]
+buildSectionHeader :: Word8 -> Int -> Int -> [Word8]
+buildSectionHeader code size nb = [code] ++ buildNumber size ++ buildNumber nb
 
 -- if the signature already exist it should not push the result
-buildFunctionType :: LispVal -> [Int] -- pour le moment le type est forcé i32
-buildFunctionType (Func _ p _) = [0x60, length p] ++ map (const 0x7f) p ++ [0x01, 0x7f] -- le dernier tableau correspondrait au return
+buildFunctionType :: LispVal -> [Word8] -- pour le moment le type est forcé i32
+buildFunctionType (Func _ p _) = [0x60] ++ buildNumber (length p) ++ map (const 0x7f) p ++ [0x01, 0x7f] -- le dernier tableau correspondrait au return
 buildFunctionType _ = []
 
 -- ghci > debugHex $ buildSectionType [Func "add" ["15", "5"] [Number 5]]
-buildSectionType :: [LispVal] -> [Int]
+buildSectionType :: [LispVal] -> [Word8]
 buildSectionType functions = buildSectionHeader 0x01 section_size (length functions) ++ concat functions_types
     where
         functions_types = map buildFunctionType functions
         concated = concat functions_types
         section_size = length concated + 1 -- + 1 cause num types is in section size
 
-debugHex :: [Int] -> [String]
+debugHex :: [Word8] -> [String]
 debugHex = map (`showHex` "")
 
 -- ; section "Function" (3)
@@ -117,9 +119,14 @@ debugHex = map (`showHex` "")
 buildFunctionSec :: [LispVal] -> [Int]
 buildFunctionSec functions = []
 
-
-buildNumber :: LispVal -> [Int]
-buildNumber (Number nb) = []
+-- in wasm numbers are as small as possible in memory, for example 15 would only take one byte [0x0f]
+buildNumber :: Int -> [Word8]
+buildNumber nb = wordClean $ BL.unpack $ encode nb
+    where
+        wordClean :: [Word8] -> [Word8]
+        wordClean [0] = [0]
+        wordClean (0: xs) = wordClean xs
+        wordClean v = v
 
 -- [104,101,108,108,111]
 
@@ -131,5 +138,5 @@ buildVarAssign (List [Atom "assign", String name, val]) = []
 buildVarAssign (List [Atom "assign", String name, val]) = []
 buildVarAssign _ = []
 
-buildWasm :: [Integer]
+buildWasm :: [Word8]
 buildWasm = magic ++ version
