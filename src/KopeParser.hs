@@ -80,9 +80,32 @@ kopeValue :: Parser KopeVal
 kopeValue = kopeBool <|> kopeNumber
 
 varP :: Parser KopeVal
-varP = pair
+varP = KopeArray <$> pair
   where
     pair =
-      (\var _ value -> KopeArray [KopeString var, value]) <$> stringLiteral <*>
-      (ws *> charP '=' <* ws) <*>
+      (\var _ value -> [KopeAtom "assign", KopeString var, value]) <$>
+      stringLiteral <*> (ws *> charP '=' <* ws) <*>
       kopeValue
+
+lineP :: Parser KopeVal
+lineP = varP
+
+sepByP :: Parser a -> Parser b -> Parser [b]
+sepByP sep element = many (ws *> element <* ws <* sep <* ws)
+
+bodyP :: Parser KopeVal
+bodyP = KopeArray <$> (charP '{' *> ws *> declaration <* ws <* charP '}')
+  where
+    declaration = sepByP (charP ';') lineP
+
+paramsP :: Parser KopeVal
+paramsP = KopeArray <$> (charP '(' *> ws *> declaration <* ws <* charP ')') 
+  where
+    declaration = sepByP (charP ',') (KopeString <$> stringLiteral)
+
+kopeFuncP :: Parser KopeVal 
+kopeFuncP = Parser $ \input -> Just (input, KopeFunc name params body)
+  where
+    name = undefined
+    params = undefined
+    body = undefined
