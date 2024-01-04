@@ -62,8 +62,8 @@ notNull :: Parser [a] -> Parser [a]
 notNull (Parser p) = Parser $ \input -> do
   (input', x) <- p input
   case null x of
-    False -> Nothing
-    True -> Just (input', x)
+    True -> Nothing
+    False -> Just (input', x)
 
 kopeNumber :: Parser KopeVal
 kopeNumber = f <$> spanP isDigit
@@ -72,6 +72,9 @@ kopeNumber = f <$> spanP isDigit
 
 ws :: Parser String
 ws = spanP isSpace
+
+letterP :: Parser String
+letterP = spanP isLetter
 
 stringLiteral :: Parser String
 stringLiteral = spanP (/= ' ')
@@ -83,7 +86,7 @@ varP :: Parser KopeVal
 varP = KopeArray <$> pair
   where
     pair =
-      (\var _ value -> [KopeAtom "assign", KopeString var, value]) <$>
+      (\var _ value -> [KopeAtom "=", KopeString var, value]) <$>
       stringLiteral <*> (ws *> charP '=' <* ws) <*>
       kopeValue
 
@@ -91,21 +94,31 @@ lineP :: Parser KopeVal
 lineP = varP
 
 sepByP :: Parser a -> Parser b -> Parser [b]
-sepByP sep element = many (ws *> element <* ws <* sep <* ws)
+sepByP sep element = (:) <$> (ws *> element) <*> many (ws *> sep *> ws *> element <* ws) <|> pure []
 
-bodyP :: Parser KopeVal
-bodyP = KopeArray <$> (charP '{' *> ws *> declaration <* ws <* charP '}')
-  where
-    declaration = sepByP (charP ';') lineP
+sepByEndP :: Parser a -> Parser b -> Parser [b]
+sepByEndP sep element = many (ws *> element <* ws <* sep <* ws)
 
-paramsP :: Parser KopeVal
-paramsP = KopeArray <$> (charP '(' *> ws *> declaration <* ws <* charP ')') 
+bodyP :: Parser [KopeVal]
+bodyP = charP '{' *> ws *> declaration <* ws <* charP '}'
   where
-    declaration = sepByP (charP ',') (KopeString <$> stringLiteral)
+    declaration = sepByEndP (charP ';') lineP
+
+paramsP :: Parser [String]
+paramsP = ws *> charP '(' *> declaration <* charP ')' <* ws
+  where
+    declaration = sepByP (charP ',') letterP
+
+nameP :: Parser String
+nameP = stringP "fn" *> ws *> notNull letterP <* ws
 
 kopeFuncP :: Parser KopeVal 
-kopeFuncP = Parser $ \input -> Just (input, KopeFunc name params body)
+kopeFuncP = Parser $ \input -> do
+  (input', name) <- nameF input
+  (input'', params) <- paramsF input'
+  (input''', body) <- bodyF input''
+  Just (input''', KopeFunc name params body)
   where
-    name = undefined
-    params = undefined
-    body = undefined
+    Parser nameF = nameP
+    Parser paramsF = paramsP
+    Parser bodyF = bodyP
