@@ -116,8 +116,13 @@ debugHex = map (`showHex` "")
 -- 0000013: 01                                        ; num functions
 -- 0000014: 00                                        ; function 0 signature index
 -- should get all functions and assignate them to their index
-buildFunctionSec :: [LispVal] -> [Int]
-buildFunctionSec functions = []
+--
+buildFunctionSec :: [LispVal] -> [Word8]
+buildFunctionSec functions = buildSectionHeader 0x03 section_size (length functions) ++ concated
+    where
+        function_index = map buildNumber [0..length functions - 1]
+        concated = concat function_index
+        section_size = length concated + 1
 
 -- in wasm numbers are as small as possible in memory, for example 15 would only take one byte [0x0f]
 buildNumber :: Int -> [Word8]
