@@ -163,9 +163,29 @@ primitives = [("+", I32add),
               ("-", I32sub)
             ]
 
-compileExpr :: LispVal -> [LispVal] -> [(String, Int)] -> [LispVal] -> ([Word8], [(String, Int)], [LispVal])
-compileExpr (Number val) funcs locals stack = (compileNumber val, locals, stack)
-compileExpr (Atom localVar) funcs locals stack = (compileGetLocalVar localVar locals, locals, stack)
+getIdFunction :: Int -> String -> [LispVal] -> Int
+getIdFunction _ called [] = -1
+getIdFunction len called (Func func _ _ : rest)
+    | isMatching = len
+    | otherwise = getIdFunction (len + 1) called rest
+    where
+        isMatching = called == func
+getIdFunction _ _ _ = -1
+
+getFunctionCall :: String -> [LispVal] -> [Word8]
+getFunctionCall called funcs = [0x10] ++ buildNumber id_function
+    where
+        id_function = getIdFunction 0 called funcs 
+
+-- debugHex $ fst (compileExpr (List [Atom "add", Number 5]) [Func "add" ["15", "5"] [Number 5], Func "sub" ["15", "5"] [Number 5]] [])
+
+compileExpr :: LispVal -> [LispVal] -> [(String, Int)] -> ([Word8], [(String, Int)])
+compileExpr (Number val) funcs locals = (compileNumber val, locals)
+compileExpr (Atom localVar) funcs locals = (compileGetLocalVar localVar locals, locals)
+compileExpr (List (Atom func : args)) funcs locals = (concated, locals)
+    where
+        (beforeB, _) = mapM (\arg -> compileExpr arg funcs locals) args
+        concated = beforeB ++ getFunctionCall func funcs
 
 buildWasm :: [Word8]
 buildWasm = magic ++ version
