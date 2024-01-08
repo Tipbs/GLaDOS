@@ -5,7 +5,7 @@ import Numeric (showHex)
 import Data.Binary (encode, Word8)
 import qualified Data.ByteString.Lazy as BL
 
-data WasmOp = LocalSet Int | LocalGet Int | I32add | I32sub
+data WasmOp = LocalSet Int | LocalGet Int | I32add | I32sub | I32const
     deriving (Eq)
 
 wasmOpToCode :: WasmOp -> [Word8]
@@ -13,6 +13,7 @@ wasmOpToCode (LocalSet val) = 0x21 : buildNumber val
 wasmOpToCode (LocalGet val) = 0x20 : buildNumber val
 wasmOpToCode I32add = [0x6a]
 wasmOpToCode I32sub = [0x6b]
+wasmOpToCode I32const = [0x41]
 
 magic :: [Word8]
 magic = [0x00, 0x61, 0x73, 0x6d]
@@ -144,7 +145,7 @@ buildVarAssign (List [Atom "assign", String name, val]) = []
 buildVarAssign _ = []
 
 compileNumber :: Int -> [Word8]
-compileNumber val = [0x41] ++ buildNumber val
+compileNumber val = wasmOpToCode I32const ++ buildNumber val
 
 compileExpr :: LispVal -> [LispVal] -> [(String, LispVal)] -> [LispVal] -> ([Word8], [(String, LispVal)], [LispVal])
 compileExpr (Number val) funcs locals stack = (compileNumber val, locals, stack)
