@@ -6,7 +6,7 @@ import Data.Char (isDigit, isLetter, isSpace)
 data LispVal = Atom String
              | List [LispVal]
              | DottedList [LispVal] LispVal
-             | Number Integer
+             | Number Int
              | String String
              | Bool Bool
              | Func { name :: String, params :: [String],

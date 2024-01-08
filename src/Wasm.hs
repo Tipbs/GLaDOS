@@ -143,5 +143,11 @@ buildVarAssign (List [Atom "assign", String name, val]) = []
 buildVarAssign (List [Atom "assign", String name, val]) = []
 buildVarAssign _ = []
 
+compileNumber :: Int -> [Word8]
+compileNumber val = [0x41] ++ buildNumber val
+
+compileExpr :: LispVal -> [LispVal] -> [(String, LispVal)] -> [LispVal] -> ([Word8], [(String, LispVal)], [LispVal])
+compileExpr (Number val) funcs locals stack = (compileNumber val, locals, stack)
+
 buildWasm :: [Word8]
 buildWasm = magic ++ version
