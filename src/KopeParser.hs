@@ -9,8 +9,8 @@ data KopeVal = KopeNull
   | KopeNumber Integer
   | KopeString String
   | KopeArray [KopeVal]
-  | KopeFunc { name :: String, params :: [String],
-               body :: [KopeVal] }
+  | KopeFunc { funcName :: String, funcParams :: [String],
+               funcBody :: [KopeVal] }
   deriving (Show, Eq)
 
 -- no error reporting
@@ -74,24 +74,72 @@ ws :: Parser String
 ws = spanP isSpace
 
 letterP :: Parser String
-letterP = spanP isLetter
+letterP = spanP (\input -> isLetter input || (== '_') input)
+
+kopeVar :: Parser KopeVal
+kopeVar = KopeAtom <$> letterP
 
 stringLiteral :: Parser String
 stringLiteral = spanP (/= ' ')
 
 kopeValue :: Parser KopeVal
-kopeValue = kopeBool <|> kopeNumber
+kopeValue = kopeBool <|> kopeString
 
-varP :: Parser KopeVal
-varP = KopeArray <$> pair
+kopeExpr :: Parser KopeVal
+kopeExpr = kopeFunc <|> kopeLine
+
+atomP :: String -> Parser KopeVal
+atomP atom = KopeArray <$> pair
   where
     pair =
-      (\var _ value -> [KopeAtom "=", KopeString var, value]) <$>
-      stringLiteral <*> (ws *> charP '=' <* ws) <*>
+      (\var _ value -> [KopeAtom atom, KopeString var, value]) <$>
+      stringLiteral <*> (ws *> stringP atom <* ws) <*>
       kopeValue
 
-lineP :: Parser KopeVal
-lineP = varP
+setVarP :: Parser KopeVal
+setVarP = KopeArray <$> pair
+  where
+    pair =
+      (\var _ value -> [KopeAtom "set", KopeString var, value]) <$>
+      stringLiteral <*> (ws *> charP '=' <* ws) <*> kopeValue
+
+defineVarP :: Parser KopeVal
+defineVarP = KopeArray <$> pair
+  where
+    pair =
+      (\var _ value -> [KopeAtom "define", KopeString var, value]) <$>
+      (stringP "var" *> ws *> stringLiteral) <*>
+      (ws *> charP '=' <* ws) <*> kopeValue
+
+kopeLine :: Parser KopeVal
+kopeLine = defineVarP <|>
+        setVarP <|>
+        atomP "==" <|>
+        atomP "+" <|>
+        atomP "-" <|>
+        atomP "*" <|>
+        atomP "/" <|>
+        atomP "mod" <|>
+        atomP "quotient" <|>
+        atomP "remainder" <|>
+        atomP "=" <|>
+        atomP "<" <|>
+        atomP ">" <|>
+        atomP "/=" <|>
+        atomP ">=" <|>
+        atomP "<=" <|>
+        atomP "&&" <|>
+        atomP "||" <|>
+        atomP "string=?" <|>
+        atomP "string<?" <|>
+        atomP "string>?" <|>
+        atomP "string<=?" <|>
+        atomP "string>=?" <|>
+        atomP "car" <|>
+        atomP "cdr" <|>
+        atomP "cons" <|>
+        atomP "eq?" <|>
+        atomP "eqv?"
 
 sepByP :: Parser a -> Parser b -> Parser [b]
 sepByP sep element = (:) <$> (ws *> element) <*> many (ws *> sep *> ws *> element <* ws) <|> pure []
@@ -102,7 +150,7 @@ sepByEndP sep element = many (ws *> element <* ws <* sep <* ws)
 bodyP :: Parser [KopeVal]
 bodyP = charP '{' *> ws *> declaration <* ws <* charP '}'
   where
-    declaration = sepByEndP (charP ';') lineP
+    declaration = sepByEndP (charP ';') kopeLine
 
 paramsP :: Parser [String]
 paramsP = ws *> charP '(' *> declaration <* charP ')' <* ws
@@ -112,8 +160,8 @@ paramsP = ws *> charP '(' *> declaration <* charP ')' <* ws
 nameP :: Parser String
 nameP = stringP "fn" *> ws *> notNull letterP <* ws
 
-kopeFuncP :: Parser KopeVal 
-kopeFuncP = Parser $ \input -> do
+kopeFunc :: Parser KopeVal 
+kopeFunc = Parser $ \input -> do
   (input', name) <- nameF input
   (input'', params) <- paramsF input'
   (input''', body) <- bodyF input''
@@ -122,3 +170,6 @@ kopeFuncP = Parser $ \input -> do
     Parser nameF = nameP
     Parser paramsF = paramsP
     Parser bodyF = bodyP
+
+kopeString :: Parser KopeVal
+kopeString = KopeString <$> (charP '"' *> spanP (/= '"') <* charP '"')
