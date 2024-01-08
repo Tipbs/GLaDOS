@@ -167,10 +167,15 @@ getFunctionCall called funcs = [0x10] ++ buildNumber id_function
     where
         id_function = getIdFunction 0 called funcs 
 
+-- debugHex $ fst (compileExpr (List [Atom "add", Number 5]) [Func "add" ["15", "5"] [Number 5], Func "sub" ["15", "5"] [Number 5]] [])
+
 compileExpr :: LispVal -> [LispVal] -> [(String, Int)] -> ([Word8], [(String, Int)])
 compileExpr (Number val) funcs locals = (compileNumber val, locals)
 compileExpr (Atom localVar) funcs locals = (compileGetLocalVar localVar locals, locals)
-compileExpr (List (Atom func : args)) funcs locals = (getFunctionCall func funcs, locals)
+compileExpr (List (Atom func : args)) funcs locals = (concated, locals)
+    where
+        (beforeB, _) = mapM (\arg -> compileExpr arg funcs locals) args
+        concated = beforeB ++ getFunctionCall func funcs
 
 buildWasm :: [Word8]
 buildWasm = magic ++ version
