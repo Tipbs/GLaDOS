@@ -153,9 +153,22 @@ compileGetLocalVar localVar localList = case mIndex of
     where
         mIndex = lookup localVar localList
 
+getIdFunction :: Int -> String -> [LispVal] -> Int
+getIdFunction id called ((List (Atom func : args)) : rest)
+    | isMatching = id - length (List (Atom func:args):rest)
+    | otherwise = getIdFunction id called rest
+    where
+        isMatching = called == func
+
+getFunctionCall :: String -> [LispVal] -> [Word8]
+getFunctionCall called funcs = [0x10] ++ buildNumber id_function
+    where
+        id_function = getIdFunction (length funcs) called funcs 
+
 compileExpr :: LispVal -> [LispVal] -> [(String, Int)] -> [LispVal] -> ([Word8], [(String, Int)], [LispVal])
 compileExpr (Number val) funcs locals stack = (compileNumber val, locals, stack)
 compileExpr (Atom localVar) funcs locals stack = (compileGetLocalVar localVar locals, locals, stack)
+compileExpr (List (Atom func : args)) funcs locals stack = (getFunctionCall func funcs, locals, stack ++ args)
 
 buildWasm :: [Word8]
 buildWasm = magic ++ version
