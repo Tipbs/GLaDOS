@@ -1,6 +1,5 @@
 module Wasm () where
 import Parser (LispVal (..))
-import Lib (Env)
 import Numeric (showHex)
 import Data.Binary (encode, Word8)
 import qualified Data.ByteString.Lazy as BL
@@ -147,8 +146,16 @@ buildVarAssign _ = []
 compileNumber :: Int -> [Word8]
 compileNumber val = wasmOpToCode I32const ++ buildNumber val
 
-compileExpr :: LispVal -> [LispVal] -> [(String, LispVal)] -> [LispVal] -> ([Word8], [(String, LispVal)], [LispVal])
+compileGetLocalVar :: String -> [(String, Int)] -> [Word8]
+compileGetLocalVar localVar localList = case mIndex of
+    Nothing -> []
+    Just i -> 0x20 : buildNumber i
+    where
+        mIndex = lookup localVar localList
+
+compileExpr :: LispVal -> [LispVal] -> [(String, Int)] -> [LispVal] -> ([Word8], [(String, Int)], [LispVal])
 compileExpr (Number val) funcs locals stack = (compileNumber val, locals, stack)
+compileExpr (Atom localVar) funcs locals stack = (compileGetLocalVar localVar locals, locals, stack)
 
 buildWasm :: [Word8]
 buildWasm = magic ++ version
