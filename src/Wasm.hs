@@ -149,9 +149,19 @@ compileNumber val = wasmOpToCode I32const ++ buildNumber val
 compileGetLocalVar :: String -> [(String, Int)] -> [Word8]
 compileGetLocalVar localVar localList = case mIndex of
     Nothing -> []
-    Just i -> 0x20 : buildNumber i
+    Just i -> wasmOpToCode $ LocalGet i
     where
         mIndex = lookup localVar localList
+
+compileOp :: String -> [Word8]
+compileOp str = maybe [] wasmOpToCode opeOp
+    where
+        opeOp = lookup str primitives
+
+primitives :: [(String, WasmOp)]
+primitives = [("+", I32add),
+              ("-", I32sub)
+            ]
 
 compileExpr :: LispVal -> [LispVal] -> [(String, Int)] -> [LispVal] -> ([Word8], [(String, Int)], [LispVal])
 compileExpr (Number val) funcs locals stack = (compileNumber val, locals, stack)
