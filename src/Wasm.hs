@@ -199,7 +199,7 @@ compileExpr (Func name params form) funcs locals = case argsB of
     (Left err) -> Left err
     where
         argsB = mapM (\arg -> compileExpr arg funcs locals) form
-compileExpr (List [Atom "define", Atom var, Number form]) funcs locals = Right ([], [(var, form)])
+compileExpr (List [Atom "define", Atom var, Number form]) funcs locals = Right ([0x01] ++ [0x7f], [(var, form)])
 compileExpr (Number val) _ locals = Right (compileNumber val, locals)
 compileExpr (Bool val) _ locals = Right (compileNumber nbVal, locals)
     where
