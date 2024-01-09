@@ -66,3 +66,6 @@ charP a = Parser $ \input ->
 -- [Char] -> [Parser Char] -> Parser [Char]
 stringP :: String -> Parser String
 stringP = sequenceA . map charP
+
+letterP :: Parser String
+letterP = spanP (\input -> isLetter input || (== '_') input)
