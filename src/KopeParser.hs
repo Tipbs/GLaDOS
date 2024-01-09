@@ -23,10 +23,10 @@ stringLiteral :: Parser String
 stringLiteral = spanP (/= ' ')
 
 kopeValue :: Parser KopeVal
-kopeValue = kopeNumber <|> kopeBool <|> kopeString <|> kopeVar
+kopeValue = kopeNumber <|> kopeBool <|> kopeString <|> kopeVar <|> kopeCall
 
 kopeExpr :: Parser KopeVal
-kopeExpr = kopeFunc <|> kopeLine
+kopeExpr = kopeFunc <|> kopeCond <|> kopeLoop <|> kopeLine
 
 atomP :: String -> Parser KopeVal
 atomP atom = KopeArray <$> pair
@@ -116,19 +116,24 @@ kopeCall = KopeArray  <$> ((:) <$> nameCallP <*> paramsCallP)
 -- kopeCall = KopeArray . map KopeString <$> ((:) <$> letterP <*> paramsP)
 -- kopeCall = (:) <$> (KopeArray . map KopeString <$> paramsP)
 
--- kopeCond :: Parser KopeVal
--- kopeCond = KopeArray <$> pair
---   where
---     pair =
---       (\var _ value -> [KopeAtom "define", KopeString var, value]) <$>
---       (stringP "if" *> ws *> charP '(' *> kopeLine <* charP ')') <*>
---       bodyP
+kopeTest :: Parser KopeVal
+kopeTest = charP '(' *> ws *> kopeValue <* ws <* charP ')'
+
+kopeCond :: Parser KopeVal
+kopeCond = KopeArray <$> pair
+  where
+    pair =
+      (\cond body -> [KopeAtom "if", cond, KopeArray body]) <$>
+      (stringP "if" *> ws *> kopeTest <* ws) <*>
+      bodyP
+
+kopeLoop :: Parser KopeVal
+kopeLoop = KopeArray <$> pair
+  where
+    pair =
+      (\cond body -> [KopeAtom "while", cond, KopeArray body]) <$>
+      (stringP "while" *> ws *> kopeTest <* ws) <*>
+      bodyP
 
 -- kopeComp :: Parser char
 -- kopeComp = oneof ""
-
-kopeCond :: KopeVal -> Parser KopeVal
-kopeCond val = KopeArray <$> cond
-  where
-    cond = (\var atom value -> [atom, val, value]) <$> 
-      kopeValue <*> kopeLine <*> kopeValue
