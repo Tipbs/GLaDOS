@@ -7,7 +7,7 @@ import Data.Bits (Bits(shift, shiftR, (.&.), (.|.), shiftL))
 import Control.Monad (foldM)
 import Control.Monad (liftM)
 
-data WasmOp = LocalSet Int | LocalGet Int | I32add | I32sub | I32const
+data WasmOp = LocalSet Int | LocalGet Int | I32add | I32sub | I32const | EndFunc
     deriving (Eq)
 
 wasmOpToCode :: WasmOp -> [Word8]
@@ -16,6 +16,7 @@ wasmOpToCode (LocalGet val) = 0x20 : buildNumber val
 wasmOpToCode I32add = [0x6a]
 wasmOpToCode I32sub = [0x6b]
 wasmOpToCode I32const = [0x41]
+wasmOpToCode EndFunc = [0x0b]
 
 magic :: [Word8]
 magic = [0x00, 0x61, 0x73, 0x6d]
@@ -130,10 +131,10 @@ buildFunctionSec functions = buildSectionHeader 0x03 section_size (length functi
 buildWords :: Int -> [Word8]
 buildWords 0 = []
 buildWords nb = rmLastB : buildWords shifted
-    where 
+    where
         rmLastB = (.&.) (fromIntegral nb :: Word8) 0x7f
         shifted = shiftR nb 7
-        
+
 -- https://en.wikipedia.org/wiki/LEB128
 buildNumber:: Int -> [Word8]
 buildNumber nb = setHighestByte
@@ -186,14 +187,23 @@ getFunctionCall called funcs = case id_function of
     where
         id_function = getIdFunction 0 called funcs
 
-buildFunctionBody :: LispVal -> [LispVal] -> Either String ([Word8], [(String, Int)])
-buildFunctionBody (Func name params body) funcs = Left "temp"
+compileFunctionBody :: LispVal -> [LispVal] -> Either String ([Word8], [(String, Int)])
+compileFunctionBody (Func _ ps body) funcs = case evaledFunc of
+    v@(Right (bytes, locals)) ->
+        let header = buildNumber (length bytes) ++ buildNumber (length locals - length ps)
+            in Right (header ++ bytes ++ wasmOpToCode EndFunc, locals)
+    v@(Left _) -> v
     where
-        evaledFunc = foldM (\acc expr -> compileExpr expr funcs (snd acc)) ([], []) body
-buildFunctionBody _ _ = Left "Invalid call to buildFunctionBody"
+        mapWithIndex :: [String] -> Int -> [(String, Int)]
+        mapWithIndex [] _ = []
+        mapWithIndex (x: xs) i = (x, i) : mapWithIndex xs (i + 1)
+        paramToLocals = mapWithIndex ps 0
+        evaledFunc = foldM (\acc expr -> compileExpr expr funcs (snd acc)) ([], paramToLocals) body
+compileFunctionBody _ _ = Left "Invalid call to compileFunctionBody"
 
 -- debugHex $ fst (compileExpr (List [Atom "add", Number 5]) [Func "add" ["a", "b"] [Number 5], Func "sub" ["a", "b"] [Number 5]] [])
 compileExpr :: LispVal -> [LispVal] -> [(String, Int)] -> Either String ([Word8], [(String, Int)])
+compileExpr f@(Func {}) funcs _ = compileFunctionBody f funcs
 compileExpr (Number val) _ locals = Right (compileNumber val, locals)
 compileExpr (Bool val) _ locals = Right (compileNumber nbVal, locals)
     where
