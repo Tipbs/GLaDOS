@@ -194,6 +194,12 @@ buildFunctionBody _ _ = Left "Invalid call to buildFunctionBody"
 
 -- debugHex $ fst (compileExpr (List [Atom "add", Number 5]) [Func "add" ["a", "b"] [Number 5], Func "sub" ["a", "b"] [Number 5]] [])
 compileExpr :: LispVal -> [LispVal] -> [(String, Int)] -> Either String ([Word8], [(String, Int)])
+compileExpr (Func name params form) funcs locals = case argsB of
+    Right [(_, newLocals)] -> Right (buildNumber (length newLocals), locals)
+    (Left err) -> Left err
+    where
+        argsB = mapM (\arg -> compileExpr arg funcs locals) form
+compileExpr (List [Atom "define", Atom var, Number form]) funcs locals = Right ([], [(var, form)])
 compileExpr (Number val) _ locals = Right (compileNumber val, locals)
 compileExpr (Bool val) _ locals = Right (compileNumber nbVal, locals)
     where
