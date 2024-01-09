@@ -4,15 +4,19 @@ import Numeric (showHex)
 import Control.Monad (liftM, foldM)
 import Data.Binary (Word8)
 import WasmNumber (buildNumber)
+import Data.Either (isRight)
 
-data WasmOp = LocalSet Int | LocalGet Int | I32add | I32sub | I32const | EndFunc
+data WasmOp = LocalSet Int | LocalGet Int | I32add | I32sub | I32mul | I32div| I32const | EndFunc
     deriving (Eq)
 
+-- https://developer.mozilla.org/en-US/docs/WebAssembly/Reference/Numeric
 wasmOpToCode :: WasmOp -> [Word8]
 wasmOpToCode (LocalSet val) = 0x21 : buildNumber val
 wasmOpToCode (LocalGet val) = 0x20 : buildNumber val
 wasmOpToCode I32add = [0x6a]
 wasmOpToCode I32sub = [0x6b]
+wasmOpToCode I32mul = [0x6c]
+wasmOpToCode I32div = [0x6d]
 wasmOpToCode I32const = [0x41]
 wasmOpToCode EndFunc = [0x0b]
 
@@ -143,7 +147,9 @@ compileOp str = maybe [] wasmOpToCode opeOp
 
 primitives :: [(String, WasmOp)]
 primitives = [("+", I32add),
-              ("-", I32sub)
+              ("-", I32sub),
+              ("*", I32mul),
+              ("/", I32div)
             ]
 
 getIdFunction :: Int -> String -> [LispVal] -> Maybe Int
@@ -164,7 +170,7 @@ getFunctionCall called funcs = case id_function of
 
 compileFunctionBody :: LispVal -> [LispVal] -> Either String ([Word8], [(String, Int)])
 compileFunctionBody (Func _ ps bod) funcs = case evaledFunc of
-    v@(Right (bytes, locals)) ->
+    (Right (bytes, locals)) ->
         let header = buildNumber (length bytes) ++ buildNumber (length locals - length ps)
             in Right (header ++ bytes ++ wasmOpToCode EndFunc, locals)
     v@(Left _) -> v
@@ -179,7 +185,7 @@ compileFunctionBody _ _ = Left "Invalid call to compileFunctionBody"
 -- debugHex $ fst (compileExpr (List [Atom "add", Number 5]) [Func "add" ["a", "b"] [Number 5], Func "sub" ["a", "b"] [Number 5]] [])
 compileExpr :: LispVal -> [LispVal] -> [(String, Int)] -> Either String ([Word8], [(String, Int)])
 compileExpr f@(Func {}) funcs _ = compileFunctionBody f funcs
-compileExpr (List [Atom "define", Atom var, Number form]) funcs locals = Right ([0x01] ++ [0x7f], locals ++ [(var, form)])
+compileExpr (List [Atom "define", Atom var, Number form]) _ locals = Right ([0x01] ++ [0x7f], locals ++ [(var, form)])
 compileExpr (Number val) _ locals = Right (compileNumber val, locals)
 compileExpr (Bool val) _ locals = Right (compileNumber nbVal, locals)
     where
@@ -193,7 +199,10 @@ compileExpr (List (Atom func : args)) funcs locals = case checked of
         checkBoth (Right arg) (Right funcCall) = Right (arg, funcCall)
         checkBoth (Left argErr) _ = Left argErr
         checkBoth _ (Left callErr) = Left callErr
-        functionCall = getFunctionCall func funcs
+        maybeToEither Nothing = Left ""
+        maybeToEither (Just val) = Right val
+        primitiveFunc = wasmOpToCode <$> maybeToEither (lookup func primitives)
+        functionCall = if isRight primitiveFunc then primitiveFunc else getFunctionCall func funcs
         checked = checkBoth argsB functionCall
 compileExpr _ _ _ = Left "Not defined yet"
         -- concated = beforeB ++ getFunctionCall func funcs
