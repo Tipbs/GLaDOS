@@ -163,29 +163,41 @@ primitives = [("+", I32add),
               ("-", I32sub)
             ]
 
-getIdFunction :: Int -> String -> [LispVal] -> Int
-getIdFunction _ called [] = -1
+getIdFunction :: Int -> String -> [LispVal] -> Maybe Int
+getIdFunction _ called [] = Nothing
 getIdFunction len called (Func func _ _ : rest)
-    | isMatching = len
+    | isMatching = Just len
     | otherwise = getIdFunction (len + 1) called rest
     where
         isMatching = called == func
-getIdFunction _ _ _ = -1
+getIdFunction _ _ _ = Nothing
 
-getFunctionCall :: String -> [LispVal] -> [Word8]
-getFunctionCall called funcs = [0x10] ++ buildNumber id_function
+getFunctionCall :: String -> [LispVal] -> Either String [Word8]
+getFunctionCall called funcs = case id_function of
+    Just i -> Right $ 0x10 : buildNumber i
+    Nothing -> Left $ "Could not find function named " ++ called
     where
-        id_function = getIdFunction 0 called funcs 
+        id_function = getIdFunction 0 called funcs
 
 -- debugHex $ fst (compileExpr (List [Atom "add", Number 5]) [Func "add" ["15", "5"] [Number 5], Func "sub" ["15", "5"] [Number 5]] [])
 
-compileExpr :: LispVal -> [LispVal] -> [(String, Int)] -> ([Word8], [(String, Int)])
-compileExpr (Number val) funcs locals = (compileNumber val, locals)
-compileExpr (Atom localVar) funcs locals = (compileGetLocalVar localVar locals, locals)
-compileExpr (List (Atom func : args)) funcs locals = (concated, locals)
+compileExpr :: LispVal -> [LispVal] -> [(String, Int)] -> Either String ([Word8], [(String, Int)])
+compileExpr (Number val) _ locals = Right (compileNumber val, locals)
+compileExpr (Atom localVar) _ locals = Right (compileGetLocalVar localVar locals, locals)
+compileExpr (List (Atom func : args)) funcs locals = case checked of
+    Right (argB, callB) -> Right (concatMap fst argB ++ callB, locals)
+    (Left err) -> Left err
     where
-        (beforeB, _) = mapM (\arg -> compileExpr arg funcs locals) args
-        concated = beforeB ++ getFunctionCall func funcs
+        -- (beforeB, _) = mapM (\arg -> compileExpr arg funcs locals) args
+        argsB = mapM (\arg -> compileExpr arg funcs locals) args
+        -- checkBoth :: Either a [b] -> Either a c -> Either a (d, c)
+        checkBoth (Left argErr) _ = Left argErr
+        checkBoth _ (Left callErr) = Left callErr
+        checkBoth (Right arg) (Right funcCall) = Right (arg, funcCall)
+        functionCall = getFunctionCall func funcs
+        checked = checkBoth argsB functionCall
+compileExpr _ _ _ = Left "Not defined yet"
+        -- concated = beforeB ++ getFunctionCall func funcs
 
 buildWasm :: [Word8]
 buildWasm = magic ++ version

@@ -49,7 +49,7 @@ instance Applicative Parser where
 
 instance Alternative Parser where
     empty :: Parser a
-    empty = Parser $ \_ -> Nothing
+    empty = Parser $ const Nothing
     (<|>) :: Parser a -> Parser a -> Parser a
     (Parser p1) <|> (Parser p2) = Parser $ \input -> p1 input <|> p2 input
 
