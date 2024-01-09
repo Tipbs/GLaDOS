@@ -146,10 +146,10 @@ buildVarAssign _ = []
 compileNumber :: Int -> [Word8]
 compileNumber val = wasmOpToCode I32const ++ buildNumber val
 
-compileGetLocalVar :: String -> [(String, Int)] -> [Word8]
+compileGetLocalVar :: String -> [(String, Int)] -> Either String ([Word8], [(String, Int)])
 compileGetLocalVar localVar localList = case mIndex of
-    Nothing -> []
-    Just i -> wasmOpToCode $ LocalGet i
+    Nothing -> Left $ "Couldn't find local variable " ++ localVar
+    Just i -> Right (wasmOpToCode $ LocalGet i, localList)
     where
         mIndex = lookup localVar localList
 
@@ -179,21 +179,19 @@ getFunctionCall called funcs = case id_function of
     where
         id_function = getIdFunction 0 called funcs
 
--- debugHex $ fst (compileExpr (List [Atom "add", Number 5]) [Func "add" ["15", "5"] [Number 5], Func "sub" ["15", "5"] [Number 5]] [])
+-- debugHex $ fst (compileExpr (List [Atom "add", Number 5]) [Func "add" ["a", "b"] [Number 5], Func "sub" ["a", "b"] [Number 5]] [])
 
 compileExpr :: LispVal -> [LispVal] -> [(String, Int)] -> Either String ([Word8], [(String, Int)])
 compileExpr (Number val) _ locals = Right (compileNumber val, locals)
-compileExpr (Atom localVar) _ locals = Right (compileGetLocalVar localVar locals, locals)
+compileExpr (Atom localVar) _ locals = compileGetLocalVar localVar locals
 compileExpr (List (Atom func : args)) funcs locals = case checked of
     Right (argB, callB) -> Right (concatMap fst argB ++ callB, locals)
     (Left err) -> Left err
     where
-        -- (beforeB, _) = mapM (\arg -> compileExpr arg funcs locals) args
         argsB = mapM (\arg -> compileExpr arg funcs locals) args
-        -- checkBoth :: Either a [b] -> Either a c -> Either a (d, c)
+        checkBoth (Right arg) (Right funcCall) = Right (arg, funcCall)
         checkBoth (Left argErr) _ = Left argErr
         checkBoth _ (Left callErr) = Left callErr
-        checkBoth (Right arg) (Right funcCall) = Right (arg, funcCall)
         functionCall = getFunctionCall func funcs
         checked = checkBoth argsB functionCall
 compileExpr _ _ _ = Left "Not defined yet"
