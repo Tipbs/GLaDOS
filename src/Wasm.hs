@@ -1,4 +1,4 @@
-module Wasm () where
+module Wasm (buildWasm) where
 import Parser (LispVal (..))
 import Numeric (showHex)
 import Control.Monad (liftM, foldM)
@@ -126,14 +126,6 @@ buildFunctionSec functions = buildSectionHeader 0x03 section_size (length functi
         concated = concat function_index
         section_size = length concated + 1
 
-buildVarAssign :: LispVal -> [Int]
-buildVarAssign (List [Atom "assign", String name, Number val]) = []
-buildVarAssign (List [Atom "assign", String name, String val]) = []
-buildVarAssign (List [Atom "assign", String name, Bool val]) = []
-buildVarAssign (List [Atom "assign", String name, val]) = []
-buildVarAssign (List [Atom "assign", String name, val]) = []
-buildVarAssign _ = []
-
 compileNumber :: Int -> [Word8]
 compileNumber val = wasmOpToCode I32const ++ buildNumber val
 
@@ -171,7 +163,7 @@ getFunctionCall called funcs = case id_function of
         id_function = getIdFunction 0 called funcs
 
 compileFunctionBody :: LispVal -> [LispVal] -> Either String ([Word8], [(String, Int)])
-compileFunctionBody (Func _ ps body) funcs = case evaledFunc of
+compileFunctionBody (Func _ ps bod) funcs = case evaledFunc of
     v@(Right (bytes, locals)) ->
         let header = buildNumber (length bytes) ++ buildNumber (length locals - length ps)
             in Right (header ++ bytes ++ wasmOpToCode EndFunc, locals)
@@ -181,7 +173,7 @@ compileFunctionBody (Func _ ps body) funcs = case evaledFunc of
         mapWithIndex [] _ = []
         mapWithIndex (x: xs) i = (x, i) : mapWithIndex xs (i + 1)
         paramToLocals = mapWithIndex ps 0
-        evaledFunc = foldM (\acc expr -> compileExpr expr funcs (snd acc)) ([], paramToLocals) body
+        evaledFunc = foldM (\acc expr -> compileExpr expr funcs (snd acc)) ([], paramToLocals) bod
 compileFunctionBody _ _ = Left "Invalid call to compileFunctionBody"
 
 -- debugHex $ fst (compileExpr (List [Atom "add", Number 5]) [Func "add" ["a", "b"] [Number 5], Func "sub" ["a", "b"] [Number 5]] [])
