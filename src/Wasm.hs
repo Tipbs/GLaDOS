@@ -5,6 +5,7 @@ import Data.Binary (encode, Word8, Word32)
 import qualified Data.ByteString.Lazy as BL
 import Data.Bits (Bits(shift, shiftR, (.&.), (.|.), shiftL))
 import Control.Monad (foldM)
+import Control.Monad (liftM)
 
 data WasmOp = LocalSet Int | LocalGet Int | I32add | I32sub | I32const
     deriving (Eq)
