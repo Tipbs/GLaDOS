@@ -4,6 +4,7 @@ import Numeric (showHex)
 import Data.Binary (encode, Word8, Word32)
 import qualified Data.ByteString.Lazy as BL
 import Data.Bits (Bits(shift, shiftR, (.&.), (.|.), shiftL))
+import Control.Monad (liftM)
 
 data WasmOp = LocalSet Int | LocalGet Int | I32add | I32sub | I32const
     deriving (Eq)
@@ -186,6 +187,10 @@ getFunctionCall called funcs = case id_function of
 
 -- debugHex $ fst (compileExpr (List [Atom "add", Number 5]) [Func "add" ["a", "b"] [Number 5], Func "sub" ["a", "b"] [Number 5]] [])
 compileExpr :: LispVal -> [LispVal] -> [(String, Int)] -> Either String ([Word8], [(String, Int)])
+compileExpr (Func name params form) funcs locals = (buildNumber defineLen, locals)
+    where
+        (_, newLocals) = mapM (\arg -> compileExpr arg funcs locals) form
+        defineLen = length newLocals
 compileExpr (Number val) _ locals = Right (compileNumber val, locals)
 compileExpr (Bool val) _ locals = Right (compileNumber nbVal, locals)
     where
