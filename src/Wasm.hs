@@ -1,8 +1,9 @@
 module Wasm () where
 import Parser (LispVal (..))
 import Numeric (showHex)
-import Data.Binary (encode, Word8)
+import Data.Binary (encode, Word8, Word32)
 import qualified Data.ByteString.Lazy as BL
+import Data.Bits (Bits(shift, shiftR, (.&.), (.|.), shiftL))
 
 data WasmOp = LocalSet Int | LocalGet Int | I32add | I32sub | I32const
     deriving (Eq)
@@ -124,16 +125,20 @@ buildFunctionSec functions = buildSectionHeader 0x03 section_size (length functi
         concated = concat function_index
         section_size = length concated + 1
 
--- in wasm numbers are as small as possible in memory, for example 15 would only take one byte [0x0f]
-buildNumber :: Int -> [Word8]
-buildNumber nb = wordClean $ BL.unpack $ encode nb
+buildWords :: Word32 -> [Word8]
+buildWords 0 = []
+buildWords nb = rmLastB : buildWords shifted
+    where 
+        rmLastB = (.&.) (fromIntegral nb :: Word8) 0x7f
+        shifted = shiftR nb 7
+        
+-- https://en.wikipedia.org/wiki/LEB128
+buildNumberNew :: Word32 -> [Word8]
+buildNumberNew nb = setHighestByte
     where
-        wordClean :: [Word8] -> [Word8]
-        wordClean [0] = [0]
-        wordClean (0: xs) = wordClean xs
-        wordClean v = v
-
--- [104,101,108,108,111]
+        sepBySeven = buildWords nb
+        tailBitSet = map (.|. 128) (tail sepBySeven)
+        setHighestByte = head sepBySeven : tailBitSet
 
 buildVarAssign :: LispVal -> [Int]
 buildVarAssign (List [Atom "assign", String name, Number val]) = []
