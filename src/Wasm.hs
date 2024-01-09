@@ -4,6 +4,7 @@ import Numeric (showHex)
 import Data.Binary (encode, Word8, Word32)
 import qualified Data.ByteString.Lazy as BL
 import Data.Bits (Bits(shift, shiftR, (.&.), (.|.), shiftL))
+import Control.Monad (foldM)
 
 data WasmOp = LocalSet Int | LocalGet Int | I32add | I32sub | I32const
     deriving (Eq)
@@ -125,7 +126,7 @@ buildFunctionSec functions = buildSectionHeader 0x03 section_size (length functi
         concated = concat function_index
         section_size = length concated + 1
 
-buildWords :: Word32 -> [Word8]
+buildWords :: Int -> [Word8]
 buildWords 0 = []
 buildWords nb = rmLastB : buildWords shifted
     where 
@@ -133,8 +134,8 @@ buildWords nb = rmLastB : buildWords shifted
         shifted = shiftR nb 7
         
 -- https://en.wikipedia.org/wiki/LEB128
-buildNumberNew :: Word32 -> [Word8]
-buildNumberNew nb = setHighestByte
+buildNumber:: Int -> [Word8]
+buildNumber nb = setHighestByte
     where
         sepBySeven = buildWords nb
         tailBitSet = map (.|. 128) (tail sepBySeven)
@@ -183,6 +184,12 @@ getFunctionCall called funcs = case id_function of
     Nothing -> Left $ "Could not find function named " ++ called
     where
         id_function = getIdFunction 0 called funcs
+
+buildFunctionBody :: LispVal -> [LispVal] -> Either String ([Word8], [(String, Int)])
+buildFunctionBody (Func name params body) funcs = Left "temp"
+    where
+        evaledFunc = foldM (\acc expr -> compileExpr expr funcs (snd acc)) ([], []) body
+buildFunctionBody _ _ = Left "Invalid call to buildFunctionBody"
 
 -- debugHex $ fst (compileExpr (List [Atom "add", Number 5]) [Func "add" ["a", "b"] [Number 5], Func "sub" ["a", "b"] [Number 5]] [])
 compileExpr :: LispVal -> [LispVal] -> [(String, Int)] -> Either String ([Word8], [(String, Int)])
