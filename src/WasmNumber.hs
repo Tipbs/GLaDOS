@@ -24,8 +24,9 @@ decodeWord byte it = w
         w :: Word32
         w = shiftL (fromIntegral withoutHigh) (8 * it)
 
-decodeNumber :: [Word8] -> Int
-decodeNumber bytes = fromIntegral word
+decodeNumber :: [Word8] -> (Int, Int)
+decodeNumber bytes = (fromIntegral word, stolenBytes)
     where
         nbBytes = takeWhile (\b -> (b .&. 128) /= 0) bytes
-        word = foldl (\acc (it, b) -> acc + decodeWord b it) 0 (zip [0..length nbBytes] nbBytes)
+        stolenBytes = length nbBytes
+        word = foldl (\acc (it, b) -> acc + decodeWord b it) 0 (zip [0..stolenBytes] nbBytes)
