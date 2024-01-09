@@ -180,9 +180,11 @@ getFunctionCall called funcs = case id_function of
         id_function = getIdFunction 0 called funcs
 
 -- debugHex $ fst (compileExpr (List [Atom "add", Number 5]) [Func "add" ["a", "b"] [Number 5], Func "sub" ["a", "b"] [Number 5]] [])
-
 compileExpr :: LispVal -> [LispVal] -> [(String, Int)] -> Either String ([Word8], [(String, Int)])
 compileExpr (Number val) _ locals = Right (compileNumber val, locals)
+compileExpr (Bool val) _ locals = Right (compileNumber nbVal, locals)
+    where
+        nbVal = if val then 1 else 0
 compileExpr (Atom localVar) _ locals = compileGetLocalVar localVar locals
 compileExpr (List (Atom func : args)) funcs locals = case checked of
     Right (argB, callB) -> Right (concatMap fst argB ++ callB, locals)
