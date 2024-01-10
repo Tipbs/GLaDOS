@@ -2,21 +2,34 @@ module WASMParser () where
 import Data.Binary.Get
 import qualified Data.ByteString.Lazy as BL
 import Data.Word
+import Data.Int
 
 data WasmModule = WasmModule {
     wasmFuncs :: [WasmFunction]
 }
 
 data WasmFunction = WasmFunction {
-    functionIndex :: Integer
-    -- instructions :: ???
+    nbParams :: Integer,
+    paramsType :: [ParamsType]
 }
+
+data ParamsType = I32 | I64
+
+typeStr :: ParamsType -> String
+typeStr I32 = "i32"
+typeStr I64 = "i64"
 
 instance Show WasmModule where
     show (WasmModule functions) = "Functions: " ++ show functions
 
 instance Show WasmFunction where
-    show (WasmFunction functionIndex) = show functionIndex
+    show (WasmFunction nbParams paramsType) =
+        "nbParams: " ++ show nbParams ++
+        "paramsType: " ++ show paramsType
+
+instance Show ParamsType where
+    show I32 = "i32"
+    show I64 = "i64"
 
 parseWasmModule :: Get WasmModule
 parseWasmModule = do
@@ -26,6 +39,7 @@ parseWasmModule = do
             fail "Wrong magic number"
         else do
             -- implémenter parsing pour les sections, types, functions, etc
+
 
             return $ WasmModule {
                 wasmFuncs = []
