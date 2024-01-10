@@ -122,7 +122,7 @@ debugHex = map (`showHex` "")
 -- 0000013: 01                                        ; num functions
 -- 0000014: 00                                        ; function 0 signature index
 -- should get all functions and assignate them to their index
---
+
 buildFunctionSec :: [LispVal] -> [Word8]
 buildFunctionSec functions = buildSectionHeader 0x03 section_size (length functions) ++ concated
     where
@@ -185,7 +185,7 @@ compileFunctionBody _ _ = Left "Invalid call to compileFunctionBody"
 -- debugHex $ fst (compileExpr (List [Atom "add", Number 5]) [Func "add" ["a", "b"] [Number 5], Func "sub" ["a", "b"] [Number 5]] [])
 compileExpr :: LispVal -> [LispVal] -> [(String, Int)] -> Either String ([Word8], [(String, Int)])
 compileExpr f@(Func {}) funcs _ = compileFunctionBody f funcs
-compileExpr (List [Atom "define", Atom var, Number form]) _ locals = Right ([0x01] ++ [0x7f], locals ++ [(var, form)])
+compileExpr (List [Atom "define", Atom var, Number form]) _ locals = Right ([0x01, 0x7f], locals ++ [(var, form)])
 compileExpr (Number val) _ locals = Right (compileNumber val, locals)
 compileExpr (Bool val) _ locals = Right (compileNumber nbVal, locals)
     where
@@ -207,5 +207,15 @@ compileExpr (List (Atom func : args)) funcs locals = case checked of
 compileExpr _ _ _ = Left "Not defined yet"
         -- concated = beforeB ++ getFunctionCall func funcs
 
-buildWasm :: [Word8]
-buildWasm = magic ++ version
+buildSectionBody :: [LispVal] -> Either String [Word8]
+buildSectionBody funcs = mapped
+    where
+        compiled = mapM (`compileFunctionBody` funcs) funcs
+        mapped = concatMap fst <$> compiled
+
+buildWasm :: [LispVal] -> Either String [Word8]
+buildWasm funcs = case bo of
+    Right bodySec -> Right $ magic ++ version ++ buildSectionType funcs ++ buildFunctionSec funcs ++ bodySec
+    err@(Left _) -> err
+    where
+        bo = buildSectionBody funcs
