@@ -1,5 +1,5 @@
 {-# HLINT ignore "Use newtype instead of data" #-}
-module WASMParser () where
+module WASMParser (wasmParser) where
 import Data.Binary.Get
 import qualified Data.ByteString.Lazy as BL
 import Data.Word
@@ -14,12 +14,7 @@ data WasmFunction = WasmFunction {
     paramsType :: [ParamsType]
 }
 
-data ParamsType = UNKNOWN | I32 | I64
-
-typeStr :: ParamsType -> String
-typeStr UNKNOWN = "Unknown"
-typeStr I32 = "i32"
-typeStr I64 = "i64"
+data ParamsType = I32 | I64
 
 instance Show WasmModule where
     show (WasmModule functions) = "Functions: " ++ show functions
@@ -30,7 +25,6 @@ instance Show WasmFunction where
         "    paramsType: " ++ show typeParams ++ "\n}\n"
 
 instance Show ParamsType where
-    show UNKNOWN = "Unknown"
     show I32 = "i32"
     show I64 = "i64"
 
@@ -44,7 +38,7 @@ getWasmType n typesParams = do
             paramType <- case byte of
                 0x7f -> return I32
                 0x7e -> return I64
-                _ -> return UNKNOWN
+                _ -> return I32
             getWasmType (n - 1) (typesParams ++ [paramType])
 
 parseWasmFunctions :: Bool -> Get WasmFunction
@@ -93,11 +87,10 @@ parseWasmFile filePath = do
         Left (_, _, errMsg) -> return $ Left errMsg
         Right (_, _, wasmModule) -> return $ Right wasmModule
 
-main :: IO ()
-main = do
-    let wasmFilePath = "simple.wasm"
+wasmParser :: String -> IO ()
+wasmParser wasmFilePath = do
     parsedResult <- parseWasmFile wasmFilePath
 
     case parsedResult of
         Left errMsg -> putStrLn $ "Error parsing wasm file: " ++ errMsg
-        Right wasmModule -> putStrLn $ "Parsed wasm module:\n" ++ show wasmModule  -- Display the parsed module
+        Right wasmModule -> putStrLn $ "Parsed wasm module:\n" ++ show wasmModule
