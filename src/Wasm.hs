@@ -173,11 +173,11 @@ getFunctionCall called funcs = case id_function of
     where
         id_function = getIdFunction 0 called funcs
 
-compileFunctionBody :: LispVal -> [LispVal] -> Either String ([Word8], [Local], [Data])
-compileFunctionBody (Func _ ps bod) funcs = case evaledFunc of
+compileFunctionBody :: LispVal -> [LispVal] -> [Data] -> Either String ([Word8], [Local], [Data])
+compileFunctionBody (Func _ ps bod) funcs oldDatas = case evaledFunc of
     (Right (bytes, locals, datas)) ->
         let header = buildNumber (length bytes) ++ buildNumber (length locals - length ps)
-            in Right (header ++ bytes ++ wasmOpToCode EndFunc, locals, datas)
+            in Right (header ++ bytes ++ wasmOpToCode EndFunc, locals, datas ++ oldDatas)
     v@(Left _) -> v
     where
         mapWithIndex :: [String] -> Int -> [(String, Int)]
@@ -189,7 +189,7 @@ compileFunctionBody (Func _ ps bod) funcs = case evaledFunc of
                 Right (cBytes, cLocals, cDatas) -> return (bytes ++ cBytes, cLocals, cDatas ++ datas)
                 Left err -> throwError err
             ) ([], paramToLocals, []) bod
-compileFunctionBody _ _ = Left "Invalid call to compileFunctionBody"
+compileFunctionBody _ _ _ = Left "Invalid call to compileFunctionBody"
 
 -- debugHex $ fst (compileExpr (List [Atom "add", Number 5]) [Func "add" ["a", "b"] [Number 5], Func "sub" ["a", "b"] [Number 5]] [])
 compileExpr :: LispVal -> Stack -> [Local] -> [Data] -> Either String ([Word8], [Local], [Data])
