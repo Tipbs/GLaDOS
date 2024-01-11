@@ -5,6 +5,7 @@ import Control.Monad (liftM, foldM)
 import Data.Binary (Word8)
 import WasmNumber (buildNumber)
 import Data.Either (isRight)
+import Control.Monad.Except (MonadError(throwError))
 
 data WasmOp = LocalSet Int | LocalGet Int | I32add | I32sub | I32mul | I32div| I32const | EndFunc
     deriving (Eq)
@@ -183,7 +184,11 @@ compileFunctionBody (Func _ ps bod) funcs = case evaledFunc of
         mapWithIndex [] _ = []
         mapWithIndex (x: xs) i = (x, i) : mapWithIndex xs (i + 1)
         paramToLocals = mapWithIndex ps 0
-        evaledFunc = foldM (\(bytes, locals, datas) expr -> compileExpr expr funcs locals []) ([], paramToLocals, []) bod
+        evaledFunc = foldM (\(bytes, locals, datas) expr ->
+            case compileExpr expr funcs locals [] of
+                Right (cBytes, cLocals, cDatas) -> return (bytes ++ cBytes, cLocals, cDatas ++ datas)
+                Left err -> throwError err
+            ) ([], paramToLocals, []) bod
 compileFunctionBody _ _ = Left "Invalid call to compileFunctionBody"
 
 -- debugHex $ fst (compileExpr (List [Atom "add", Number 5]) [Func "add" ["a", "b"] [Number 5], Func "sub" ["a", "b"] [Number 5]] [])
