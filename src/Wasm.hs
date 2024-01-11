@@ -9,6 +9,10 @@ import Data.Either (isRight)
 data WasmOp = LocalSet Int | LocalGet Int | I32add | I32sub | I32mul | I32div| I32const | EndFunc
     deriving (Eq)
 
+type Stack = [LispVal]
+type Local = (String, Int)
+type Data = (String, LispVal)
+
 -- https://developer.mozilla.org/en-US/docs/WebAssembly/Reference/Numeric
 wasmOpToCode :: WasmOp -> [Word8]
 wasmOpToCode (LocalSet val) = 0x21 : buildNumber val
@@ -133,10 +137,10 @@ buildFunctionSec functions = buildSectionHeader 0x03 section_size (length functi
 compileNumber :: Int -> [Word8]
 compileNumber val = wasmOpToCode I32const ++ buildNumber val
 
-compileGetLocalVar :: String -> [(String, Int)] -> Either String ([Word8], [(String, Int)])
-compileGetLocalVar localVar localList = case mIndex of
+compileGetLocalVar :: String -> [Local] -> [Data] -> Either String ([Word8], [(String, Int)], [Data])
+compileGetLocalVar localVar localList datas = case mIndex of
     Nothing -> Left $ "Couldn't find local variable " ++ localVar
-    Just i -> Right (wasmOpToCode $ LocalGet i, localList)
+    Just i -> Right (wasmOpToCode $ LocalGet i, localList, datas)
     where
         mIndex = lookup localVar localList
 
@@ -168,34 +172,34 @@ getFunctionCall called funcs = case id_function of
     where
         id_function = getIdFunction 0 called funcs
 
-compileFunctionBody :: LispVal -> [LispVal] -> Either String ([Word8], [(String, Int)])
+compileFunctionBody :: LispVal -> [LispVal] -> Either String ([Word8], [Local], [Data])
 compileFunctionBody (Func _ ps bod) funcs = case evaledFunc of
-    (Right (bytes, locals)) ->
+    (Right (bytes, locals, datas)) ->
         let header = buildNumber (length bytes) ++ buildNumber (length locals - length ps)
-            in Right (header ++ bytes ++ wasmOpToCode EndFunc, locals)
+            in Right (header ++ bytes ++ wasmOpToCode EndFunc, locals, datas)
     v@(Left _) -> v
     where
         mapWithIndex :: [String] -> Int -> [(String, Int)]
         mapWithIndex [] _ = []
         mapWithIndex (x: xs) i = (x, i) : mapWithIndex xs (i + 1)
         paramToLocals = mapWithIndex ps 0
-        evaledFunc = foldM (\acc expr -> compileExpr expr funcs (snd acc)) ([], paramToLocals) bod
+        evaledFunc = foldM (\(bytes, locals, datas) expr -> compileExpr expr funcs locals []) ([], paramToLocals, []) bod
 compileFunctionBody _ _ = Left "Invalid call to compileFunctionBody"
 
 -- debugHex $ fst (compileExpr (List [Atom "add", Number 5]) [Func "add" ["a", "b"] [Number 5], Func "sub" ["a", "b"] [Number 5]] [])
-compileExpr :: LispVal -> [LispVal] -> [(String, Int)] -> Either String ([Word8], [(String, Int)])
-compileExpr f@(Func {}) funcs _ = compileFunctionBody f funcs
-compileExpr (List [Atom "define", Atom var, Number form]) _ locals = Right ([0x01, 0x7f], locals ++ [(var, form)])
-compileExpr (Number val) _ locals = Right (compileNumber val, locals)
-compileExpr (Bool val) _ locals = Right (compileNumber nbVal, locals)
+compileExpr :: LispVal -> Stack -> [Local] -> [Data] -> Either String ([Word8], [Local], [Data])
+compileExpr f@(Func {}) funcs _ datas = compileFunctionBody f funcs
+compileExpr (List [Atom "define", Atom var, Number form]) _ locals datas = Right ([0x01, 0x7f], locals ++ [(var, form)], datas)
+compileExpr (Number val) _ locals datas = Right (compileNumber val, locals, datas)
+compileExpr (Bool val) _ locals datas = Right (compileNumber nbVal, locals, datas)
     where
         nbVal = if val then 1 else 0
-compileExpr (Atom localVar) _ locals = compileGetLocalVar localVar locals
-compileExpr (List (Atom func : args)) funcs locals = case checked of
-    Right (argB, callB) -> Right (concatMap fst argB ++ callB, locals)
+compileExpr (Atom localVar) _ locals datas = compileGetLocalVar localVar locals datas
+compileExpr (List (Atom func : args)) funcs locals datas = case checked of
+    Right (argsDat, callB) -> Right (concatMap (\(b, _, _) -> b) argsDat ++ callB, locals, concatMap (\(_, _, p) -> p) argsDat ++ datas)
     (Left err) -> Left err
     where
-        argsB = mapM (\arg -> compileExpr arg funcs locals) args
+        argsB = mapM (\arg -> compileExpr arg funcs locals []) args
         checkBoth (Right arg) (Right funcCall) = Right (arg, funcCall)
         checkBoth (Left argErr) _ = Left argErr
         checkBoth _ (Left callErr) = Left callErr
@@ -204,18 +208,25 @@ compileExpr (List (Atom func : args)) funcs locals = case checked of
         primitiveFunc = wasmOpToCode <$> maybeToEither (lookup func primitives)
         functionCall = if isRight primitiveFunc then primitiveFunc else getFunctionCall func funcs
         checked = checkBoth argsB functionCall
-compileExpr _ _ _ = Left "Not defined yet"
+compileExpr _ _ _ _ = Left "Not defined yet"
         -- concated = beforeB ++ getFunctionCall func funcs
 
-buildSectionBody :: [LispVal] -> Either String [Word8]
-buildSectionBody funcs = mapped
+-- code horrible
+buildSectionBody :: [LispVal] -> Either String ([Word8], [Data])
+buildSectionBody funcs = combineEither concatedB concatedD
     where
-        compiled = mapM (`compileFunctionBody` funcs) funcs
-        mapped = concatMap fst <$> compiled
+        compiled = mapM (\func -> compileExpr func [] [] []) funcs
+        mapped = map (\(b, _, d) -> (b, d)) <$> compiled
+        concatedB = concatMap fst <$> mapped
+        concatedD = concatMap snd <$> mapped
+        combineEither :: Either String [Word8] -> Either String [Data] -> Either String ([Word8], [Data])
+        combineEither (Right b) (Right d) = Right (b, d)
+        combineEither (Left err) _ = Left err
+        combineEither _ (Left err) = Left err
 
 buildWasm :: [LispVal] -> Either String [Word8]
 buildWasm funcs = case bo of
-    Right bodySec -> Right $ magic ++ version ++ buildSectionType funcs ++ buildFunctionSec funcs ++ bodySec
-    err@(Left _) -> err
+    Right (bodyBytes, _) -> Right $ magic ++ version ++ buildSectionType funcs ++ buildFunctionSec funcs ++ bodyBytes
+    (Left err) -> Left err
     where
         bo = buildSectionBody funcs
