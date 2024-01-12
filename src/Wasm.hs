@@ -1,4 +1,4 @@
-module Wasm (buildWasm, compileExpr, magic, version, buildSectionHeader, compileOp, WasmOp (..)) where
+module Wasm (buildWasm, compileExpr, magic, version, buildSectionHeader, buildDataSec, compileOp, WasmOp (..)) where
 import Parser (LispVal (..))
 import Numeric (showHex)
 import Control.Monad (liftM, foldM)
@@ -119,7 +119,7 @@ buildSectionType functions = buildSectionHeader 0x01 section_size (length functi
     where
         functions_types = map buildFunctionType functions
         concated = concat functions_types
-        section_size = length concated + 1 -- + 1 cause num types is in section size
+        section_size = length concated
 
 debugHex :: [Word8] -> [String]
 debugHex = map (`showHex` "")
@@ -136,7 +136,7 @@ buildFunctionSec functions = buildSectionHeader 0x03 section_size (length functi
     where
         function_index = map buildNumber [0..length functions - 1]
         concated = concat function_index
-        section_size = length concated + 1
+        section_size = length concated
 
 compileNumber :: Int -> [Word8]
 compileNumber val = wasmOpToCode I32const ++ buildNumber val
@@ -187,11 +187,6 @@ getIdData len (String func) (String x:datas)
 getSegDataSize :: Data -> Int
 getSegDataSize (String func) = length (buildString func)
 
-getDataSegLen :: Data -> [Data] -> Int
-getDataSegLen func datas = length (buildSegmentHeader id_data) + getSegDataSize func
-    where 
-        id_data = getIdData 0 func datas
-
 buildDataSegments :: Data -> [Data] -> [Word8]
 buildDataSegments (String func) datas = buildSegmentHeader id_data ++ buildNumber segLen ++ buildString func 
     where
@@ -203,9 +198,8 @@ buildDataSec :: [Data] -> [Word8]
 buildDataSec datas = buildSectionHeader 0x0b section_size (length datas) ++ concated
     where
         data_segments = map (`buildDataSegments` datas) datas
-        data_seg_len = map (`getDataSegLen` datas) datas 
-        section_size = sum data_seg_len
         concated = concat data_segments
+        section_size = length concated
 
 compileFunctionBody :: LispVal -> [LispVal] -> [Data] -> Either String ([Word8], [Local], [Data])
 compileFunctionBody (Func _ ps bod) funcs oldDatas = case evaledFunc of

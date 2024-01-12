@@ -35,4 +35,4 @@ decodeNumber bytes = (fromIntegral word, stolenBytes)
         word = foldl (\acc (it, b) -> acc + decodeWord b it) 0 (zip [0..stolenBytes] nbBytes)
 
 buildString :: String -> [Word8]
-buildString str = B.unpack (B.pack (map c2w str)) ++ [0]
+buildString str = B.unpack (B.pack (map c2w str)) ++ [0x00]
