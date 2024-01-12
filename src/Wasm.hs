@@ -3,7 +3,7 @@ import Parser (LispVal (..))
 import Numeric (showHex)
 import Control.Monad (liftM, foldM)
 import Data.Binary (Word8)
-import WasmNumber (buildNumber)
+import WasmNumber (buildNumber, buildString)
 import Data.Either (isRight)
 import Control.Monad.Except (MonadError(throwError))
 
@@ -103,7 +103,10 @@ version = [0x01, 0x00, 0x00, 0x00]
 -- 0000010: 7f                                        ; i32
 
 buildSectionHeader :: Word8 -> Int -> Int -> [Word8]
-buildSectionHeader code size nb = [code] ++ buildNumber size ++ buildNumber nb
+buildSectionHeader code size nb = [code] ++ buildNumber newSize ++ newNb
+    where
+        newNb = buildNumber nb
+        newSize = size + length newNb
 
 -- if the signature already exist it should not push the result
 buildFunctionType :: LispVal -> [Word8] -- pour le moment le type est forcé i32
@@ -172,6 +175,37 @@ getFunctionCall called funcs = case id_function of
     Nothing -> Left $ "Could not find function named " ++ called
     where
         id_function = getIdFunction 0 called funcs
+
+buildSegmentHeader :: Int -> [Word8]
+buildSegmentHeader idx = [0x00, 0x41] ++ buildNumber idx ++ [0x0b]
+
+getIdData :: Int -> Data -> [Data] -> Int
+getIdData len (String func) (String x:datas)
+    | func == x = len
+    | otherwise = getIdData (len + 1) (String func) datas
+
+getSegDataSize :: Data -> Int
+getSegDataSize (String func) = length (buildString func)
+
+getDataSegLen :: Data -> [Data] -> Int
+getDataSegLen func datas = length (buildSegmentHeader id_data) + getSegDataSize func
+    where 
+        id_data = getIdData 0 func datas
+
+buildDataSegments :: Data -> [Data] -> [Word8]
+buildDataSegments (String func) datas = buildSegmentHeader id_data ++ buildNumber segLen ++ buildString func 
+    where
+        id_data = getIdData 0 (String func) datas
+        segLen = getSegDataSize (String func)
+
+
+buildDataSec :: [Data] -> [Word8]
+buildDataSec datas = buildSectionHeader 0x0b section_size (length datas) ++ concated
+    where
+        data_segments = map (`buildDataSegments` datas) datas
+        data_seg_len = map (`getDataSegLen` datas) datas 
+        section_size = sum data_seg_len
+        concated = concat data_segments
 
 compileFunctionBody :: LispVal -> [LispVal] -> [Data] -> Either String ([Word8], [Local], [Data])
 compileFunctionBody (Func _ ps bod) funcs oldDatas = case evaledFunc of
