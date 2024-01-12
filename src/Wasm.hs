@@ -176,7 +176,8 @@ getFunctionCall called funcs = case id_function of
 compileFunctionBody :: LispVal -> [LispVal] -> [Data] -> Either String ([Word8], [Local], [Data])
 compileFunctionBody (Func _ ps bod) funcs oldDatas = case evaledFunc of
     (Right (bytes, locals, datas)) ->
-        let header = buildNumber (length bytes) ++ buildNumber (length locals - length ps)
+        let local_decl_count = buildNumber (length locals - length ps)
+            header = buildNumber (length bytes + 1 + length local_decl_count) ++ local_decl_count -- +1 for end
             in Right (header ++ bytes ++ wasmOpToCode EndFunc, locals, datas ++ oldDatas)
     v@(Left _) -> v
     where
@@ -225,7 +226,7 @@ buildSectionBody funcs = combineEither concatedB concatedD
         concatedB = concatMap fst <$> mapped
         concatedD = concatMap snd <$> mapped
         combineEither :: Either String [Word8] -> Either String [Data] -> Either String ([Word8], [Data])
-        combineEither (Right b) (Right d) = Right (b, d)
+        combineEither (Right b) (Right d) = Right (buildSectionHeader 0x0a (length b) (length funcs) ++ b, d)
         combineEither (Left err) _ = Left err
         combineEither _ (Left err) = Left err
 
