@@ -1,6 +1,6 @@
 import Test.HUnit
 import System.Exit
-import Wasm (magic, version, buildSectionHeader, buildWasm, compileOp, compileExpr)
+import Wasm (magic, version, buildSectionHeader, buildWasm, compileOp, compileExpr, buildDataSec)
 import WasmNumber (buildNumber, decodeNumber, buildWords)
 import Parser (LispVal (..))
 
@@ -11,7 +11,7 @@ testVersion :: Test
 testVersion = TestCase (assertEqual "wrong version value" ([0x01, 0x00, 0x00, 0x00]) version)
 
 testBuildSectionHeader :: Test
-testBuildSectionHeader = TestCase (assertEqual "wrong buildSectionHeader output" [0x03, 0x07, 0x01] (buildSectionHeader 0x03 0x07 1))
+testBuildSectionHeader = TestCase (assertEqual "wrong buildSectionHeader output" [0x03, 0x08, 0x01] (buildSectionHeader 0x03 0x07 1))
 
 testCompileOp :: Test
 testCompileOp = TestCase (assertEqual "wrong compileOp output" [0x6a] (compileOp "+"))
@@ -49,6 +49,9 @@ testSimpleBuildWasm = TestCase (assertEqual "Wrong buildwasm for simple with sub
 -- Right [0,97,115,109,1,0,0,0,1,7,1,96,2,127,127,1,127,3,2,1,0,5,0,32,0,32,1,107,11]
 -- ["0","61","73","6d","1","0","0","0","1","7","1","60","2","7f","7f","1","7f","3","2","1","0","a","8","1","5","0","20","0","20","1","6b","b"]
 
+testBuildDataSec :: Test
+testBuildDataSec = TestCase (assertEqual "wrong buildNumber output with 624485" [0x0b, 0x13, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x0d, 0x48, 0x65 , 0x6c, 0x6c , 0x6f, 0x20, 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x21, 0x00] (buildDataSec [String "Hello World!"]))
+
 wasmTests :: Test
 wasmTests = TestList [
         TestLabel "check magic value" testMagic,
@@ -61,7 +64,8 @@ wasmTests = TestList [
         TestLabel "build successful function call" testFunctionCall,
         TestLabel "build successful function call 2" testFunctionCallSnd,
         TestLabel "build unsuccessful function call" testFunctionCallWrong,
-        TestLabel "build simple program with one function" testSimpleBuildWasm
+        TestLabel "build simple program with one function" testSimpleBuildWasm,
+        TestLabel "build data with hello world" testBuildDataSec
     ]
 
 main :: IO ()

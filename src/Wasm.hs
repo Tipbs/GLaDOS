@@ -1,9 +1,9 @@
-module Wasm (buildWasm, compileExpr, magic, version, buildSectionHeader, compileOp, WasmOp (..)) where
+module Wasm (buildWasm, compileExpr, magic, version, buildSectionHeader, buildDataSec, compileOp, WasmOp (..)) where
 import Parser (LispVal (..))
 import Numeric (showHex)
 import Control.Monad (liftM, foldM)
 import Data.Binary (Word8)
-import WasmNumber (buildNumber)
+import WasmNumber (buildNumber, buildString)
 import Data.Either (isRight)
 import Control.Monad.Except (MonadError(throwError))
 
@@ -103,7 +103,10 @@ version = [0x01, 0x00, 0x00, 0x00]
 -- 0000010: 7f                                        ; i32
 
 buildSectionHeader :: Word8 -> Int -> Int -> [Word8]
-buildSectionHeader code size nb = [code] ++ buildNumber size ++ buildNumber nb
+buildSectionHeader code size nb = [code] ++ buildNumber newSize ++ newNb
+    where
+        newNb = buildNumber nb
+        newSize = size + length newNb
 
 -- if the signature already exist it should not push the result
 buildFunctionType :: LispVal -> [Word8] -- pour le moment le type est forcé i32
@@ -116,7 +119,7 @@ buildSectionType functions = buildSectionHeader 0x01 section_size (length functi
     where
         functions_types = map buildFunctionType functions
         concated = concat functions_types
-        section_size = length concated + 1 -- + 1 cause num types is in section size
+        section_size = length concated
 
 debugHex :: [Word8] -> [String]
 debugHex = map (`showHex` "")
@@ -133,7 +136,7 @@ buildFunctionSec functions = buildSectionHeader 0x03 section_size (length functi
     where
         function_index = map buildNumber [0..length functions - 1]
         concated = concat function_index
-        section_size = length concated + 1
+        section_size = length concated
 
 compileNumber :: Int -> [Word8]
 compileNumber val = wasmOpToCode I32const ++ buildNumber val
@@ -172,6 +175,31 @@ getFunctionCall called funcs = case id_function of
     Nothing -> Left $ "Could not find function named " ++ called
     where
         id_function = getIdFunction 0 called funcs
+
+buildSegmentHeader :: Int -> [Word8]
+buildSegmentHeader idx = [0x00, 0x41] ++ buildNumber idx ++ [0x0b]
+
+getIdData :: Int -> Data -> [Data] -> Int
+getIdData len (String func) (String x:datas)
+    | func == x = len
+    | otherwise = getIdData (len + 1) (String func) datas
+
+getSegDataSize :: Data -> Int
+getSegDataSize (String func) = length (buildString func)
+
+buildDataSegments :: Data -> [Data] -> [Word8]
+buildDataSegments (String func) datas = buildSegmentHeader id_data ++ buildNumber segLen ++ buildString func 
+    where
+        id_data = getIdData 0 (String func) datas
+        segLen = getSegDataSize (String func)
+
+
+buildDataSec :: [Data] -> [Word8]
+buildDataSec datas = buildSectionHeader 0x0b section_size (length datas) ++ concated
+    where
+        data_segments = map (`buildDataSegments` datas) datas
+        concated = concat data_segments
+        section_size = length concated
 
 compileFunctionBody :: LispVal -> [LispVal] -> [Data] -> Either String ([Word8], [Local], [Data])
 compileFunctionBody (Func _ ps bod) funcs oldDatas = case evaledFunc of
