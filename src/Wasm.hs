@@ -249,7 +249,7 @@ compileExpr _ _ _ _ = Left "Not defined yet"
 buildSectionBody :: [LispVal] -> Either String ([Word8], [Data])
 buildSectionBody funcs = combineEither concatedB concatedD
     where
-        compiled = mapM (\func -> compileExpr func [] [] []) funcs
+        compiled = mapM (\func -> compileExpr func funcs [] []) funcs
         mapped = map (\(b, _, d) -> (b, d)) <$> compiled
         concatedB = concatMap fst <$> mapped
         concatedD = concatMap snd <$> mapped
