@@ -46,6 +46,17 @@ testSimpleBuildWasm = TestCase (assertEqual "Wrong buildwasm for simple with sub
             0x7F, 0x03, 0x02, 0x01, 0x00, 0x0A, 0x09, 0x01, 0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6B, 0x0B]
         b = [List [Atom "-", Atom "a", Atom "b"]]
 
+testSimpleBuildWasm2 :: Test
+testSimpleBuildWasm2 = TestCase (assertEqual "Wrong buildwasm for simple with sub func" (Right bytes) (buildWasm [Func "sub" ["a", "b"] subB, Func "callSub" [] callsubB]))
+    where
+        bytes = [
+                0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0B, 0x02, 0x60, 0x02, 0x7F, 0x7F, 0x01, 
+                0x7F, 0x60, 0x00, 0x01, 0x7F, 0x03, 0x03, 0x02, 0x00, 0x01, 0x0A, 0x12, 0x02, 0x07, 0x00, 0x20, 
+                0x00, 0x20, 0x01, 0x6B, 0x0B, 0x08, 0x00, 0x41, 0x0A, 0x41, 0x06, 0x10, 0x00, 0x0B
+            ]
+        subB = [List [Atom "-", Atom "a", Atom "b"]]
+        callsubB = [List [Atom "sub", Number 10, Number 6]]
+
 -- Right [0,97,115,109,1,0,0,0,1,7,1,96,2,127,127,1,127,3,2,1,0,5,0,32,0,32,1,107,11]
 -- ["0","61","73","6d","1","0","0","0","1","7","1","60","2","7f","7f","1","7f","3","2","1","0","a","8","1","5","0","20","0","20","1","6b","b"]
 
@@ -65,6 +76,7 @@ wasmTests = TestList [
         TestLabel "build successful function call 2" testFunctionCallSnd,
         TestLabel "build unsuccessful function call" testFunctionCallWrong,
         TestLabel "build simple program with one function" testSimpleBuildWasm,
+        TestLabel "build simple program with 2 functions calling each other" testSimpleBuildWasm2,
         TestLabel "build data with hello world" testBuildDataSec
     ]
 
