@@ -78,9 +78,9 @@ showVal (List contents) = "(" ++ unwordsList contents ++ ")"
 showVal (DottedList h t) = "(" ++ unwordsList h ++ " . " ++ showVal t ++ ")"
 
 -- comprendre unpackNum
-unpackNum :: LispVal -> ThrowsError Integer
+unpackNum :: LispVal -> ThrowsError Int
 unpackNum (Number n) = return n
-unpackNum (String n) = let parsed = reads n :: [(Integer, String)] in
+unpackNum (String n) = let parsed = reads n :: [(Int, String)] in
                            if null parsed
                               then throwError $ TypeMismatch "number" $ String n
                               else return $ fst $ head parsed
@@ -132,7 +132,7 @@ eqv [_, _] = return $ Bool False
 eqv badArg = throwError $ NumArgs 2 badArg
 
 -- appelle juste fonction sur tout éléments, accumule résultats avec fold
-numericBinop :: (Integer -> Integer -> Integer) -> [LispVal] -> ThrowsError LispVal
+numericBinop :: (Int -> Int -> Int) -> [LispVal] -> ThrowsError LispVal
 numericBinop _ [] = throwError $ NumArgs 2 []
 numericBinop _ singleVal@[_] = throwError $ NumArgs 2 singleVal
 numericBinop op params = mapM unpackNum params >>= return . Number . foldl1 op
@@ -145,7 +145,7 @@ boolBinop unpacker op args = if length args /= 2
                                 right <- unpacker $ args !! 1
                                 return $ Bool $ left `op` right
 
-numBoolBinop :: (Integer -> Integer -> Bool) -> [LispVal] -> ThrowsError LispVal
+numBoolBinop :: (Int -> Int -> Bool) -> [LispVal] -> ThrowsError LispVal
 numBoolBinop = boolBinop unpackNum
 
 boolBoolBinop :: (Bool -> Bool -> Bool) -> [LispVal] -> ThrowsError LispVal
