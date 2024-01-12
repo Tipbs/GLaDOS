@@ -1,4 +1,4 @@
-module Wasm (buildWasm) where
+module Wasm (buildWasm, compileExpr, magic, version, buildSectionHeader, compileOp, WasmOp (..)) where
 import Parser (LispVal (..))
 import Numeric (showHex)
 import Control.Monad (liftM, foldM)
@@ -12,7 +12,7 @@ data WasmOp = LocalSet Int | LocalGet Int | I32add | I32sub | I32mul | I32div| I
 
 type Stack = [LispVal]
 type Local = (String, Int)
-type Data = (String, LispVal)
+type Data = LispVal
 
 -- https://developer.mozilla.org/en-US/docs/WebAssembly/Reference/Numeric
 wasmOpToCode :: WasmOp -> [Word8]
@@ -158,7 +158,7 @@ primitives = [("+", I32add),
             ]
 
 getIdFunction :: Int -> String -> [LispVal] -> Maybe Int
-getIdFunction _ called [] = Nothing
+getIdFunction _ _ [] = Nothing
 getIdFunction len called (Func func _ _ : rest)
     | isMatching = Just len
     | otherwise = getIdFunction (len + 1) called rest
