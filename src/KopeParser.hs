@@ -17,13 +17,16 @@ kopeNumber = f <$> notNull (spanP isDigit)
     f num = KopeNumber $ read num
 
 kopeVar :: Parser KopeVal
-kopeVar = KopeAtom <$> letterP
+kopeVar = KopeAtom <$> notNull letterP
 
 stringLiteral :: Parser String
 stringLiteral = spanP (/= ' ')
 
+kopeAtom :: Parser KopeVal
+kopeAtom = oneOfP ["==", "/=", ">=", "<=", "&&", "||", "+", "-", "*", "/", "=", "<", ">"]
+
 kopeValue :: Parser KopeVal
-kopeValue = kopeNumber <|> kopeBool <|> kopeString <|> kopeVar <|> kopeCall
+kopeValue = kopeNumber <|> kopeBool <|> kopeString <|> kopeVar <|> kopeCall <|> kopeAtom
 
 kopeExpr :: Parser KopeVal
 kopeExpr = kopeFunc <|> kopeCond <|> kopeLoop <|> kopeLine
@@ -52,7 +55,7 @@ defineVarP = KopeArray <$> pair
       (ws *> charP '=' <* ws) <*> kopeValue
 
 kopeLine :: Parser KopeVal
-kopeLine = 
+kopeLine =
         atomP "==" <|>
         atomP "+" <|>
         atomP "-" <|>
@@ -89,7 +92,7 @@ paramsP = ws *> charP '(' *> declaration <* charP ')' <* ws
 nameP :: Parser String
 nameP = stringP "fn" *> ws *> notNull letterP <* ws
 
-kopeFunc :: Parser KopeVal 
+kopeFunc :: Parser KopeVal
 kopeFunc = Parser $ \input -> do
   (input', name) <- nameF input
   (input'', params) <- paramsF input'
@@ -137,3 +140,83 @@ kopeLoop = KopeArray <$> pair
 
 -- kopeComp :: Parser char
 -- kopeComp = oneof ""
+
+kopeTokenize :: Parser [KopeVal]
+kopeTokenize = (:) <$> kopeValue <*> many (notNull ws *> kopeValue) <|> pure []
+
+-- parseFactor :: [String] -> (Ast, [String])
+-- parseFactor (t : ts)
+--   | isNumToken t = (Num (read t), ts)
+--   | isWordToken t = (Word t, ts)
+--   | otherwise = error ("unrecognized token " ++ show t)
+-- parseFactor [] = error "unexpected end of input"
+
+-- parseTerm :: [String] -> (Ast, [String])
+-- parseTerm ts
+--   =  let (f1, ts1) = parseFactor ts
+--      in  go f1 ts1
+--   where go acc ("*":ts2)
+--           = let (f2, ts3) = parseFactor ts2
+--             in go (Mult acc f2) ts3
+--         go acc rest = (acc, rest)
+
+
+-- go :: KopeVal -> String -> Maybe (String, KopeVal)
+-- go acc "" = Just ("", acc)
+-- go acc rest = do
+--     (ts2, f1) <- runParser (kopeValue <* ws) rest
+--     (ts3, f2) <- runParser (kopeValue <* ws) ts2
+--     case f1 of
+--       KopeAtom "*" -> go (KopeArray [f1, acc, f2]) ts3
+--       _ -> Just (rest, acc)
+
+parseTerm :: Parser KopeVal
+parseTerm = Parser $ \input -> do
+      (ts1, f1) <- runParser (kopeValue <* ws) input
+      go f1 ts1
+  where
+    go acc "" = Just ("", acc)
+    go acc rest = do
+        (ts2, f1) <- runParser (kopeValue <* ws) rest
+        (ts3, f2) <- runParser (kopeValue <* ws) ts2
+        case f1 of
+          KopeAtom atom | atom `elem` ["==", "/="] -> go (KopeArray [f1, acc, f2]) ts3
+          _ -> Just (rest, acc)
+
+-- parseTerm :: [KopeVal] -> KopeVal
+-- parseTerm (f1: ts1) = go f1 ts1
+--   where
+--   go acc (KopeAtom "*": f2: ts3) = go (KopeArray [KopeAtom "*", acc, f2]) ts3
+--   go acc rest = acc
+
+-- kopePriority :: Parser KopeVal
+-- kopePriority = Parser $ \input -> do
+--   (input', tokens) <- runParser kopeTokenize input
+--   Just (input', parseTerm tokens)
+
+
+
+-- parseExpr :: [String] -> (Ast, [String])
+-- parseExpr ts
+--   =  let (f1, ts1) = parseTerm ts
+--      in  go f1 ts1
+--   where go acc (op:ts2)
+--           | op == "+" || op == "-"
+--           = let (f2, ts3) = parseTerm ts2
+--             in go ((astOp op) acc f2) ts3
+--         go acc rest = (acc, rest)
+--         astOp "+" = Plus
+--         astOp "-" = Minus
+
+parseExpr :: Parser KopeVal
+parseExpr = Parser $ \input -> do
+      (ts1, f1) <- runParser parseTerm input
+      go f1 ts1
+  where
+    go acc "" = Just ("", acc)
+    go acc rest = do
+        (ts2, f1) <- runParser (kopeValue <* ws) rest
+        (ts3, f2) <- runParser parseTerm ts2
+        case f1 of
+          KopeAtom atom | atom `elem` ["&&", "||"] -> go (KopeArray [f1, acc, f2]) ts3
+          _ -> Just (rest, acc)

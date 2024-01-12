@@ -51,11 +51,13 @@ spanP f = Parser $ \input -> do
 ws :: Parser String
 ws = spanP isSpace
 
-oneOfP :: String -> Parser Char
-oneOfP ch = Parser f
+oneOfP :: [String] -> Parser KopeVal
+oneOfP tokens = Parser $ \input -> f tokens input 
     where
-        f (x: xs) | x `elem` ch = Just (xs, x)
-        f _ = Nothing
+        f (x: xs) input
+          | runParser (stringP x) input == Nothing = f xs input
+          | otherwise = runParser (KopeAtom <$> stringP x) input
+        f _ _ = Nothing
 
 charP :: Char -> Parser Char
 charP a = Parser $ \input ->
