@@ -193,7 +193,7 @@ compileFunctionBody _ _ _ = Left "Invalid call to compileFunctionBody"
 
 -- debugHex $ fst (compileExpr (List [Atom "add", Number 5]) [Func "add" ["a", "b"] [Number 5], Func "sub" ["a", "b"] [Number 5]] [])
 compileExpr :: LispVal -> Stack -> [Local] -> [Data] -> Either String ([Word8], [Local], [Data])
-compileExpr f@(Func {}) funcs _ datas = compileFunctionBody f funcs
+compileExpr f@(Func {}) funcs _ datas = compileFunctionBody f funcs datas
 compileExpr (List [Atom "define", Atom var, Number form]) _ locals datas = Right ([0x01, 0x7f], locals ++ [(var, form)], datas)
 compileExpr (Number val) _ locals datas = Right (compileNumber val, locals, datas)
 compileExpr (Bool val) _ locals datas = Right (compileNumber nbVal, locals, datas)
