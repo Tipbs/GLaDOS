@@ -64,12 +64,17 @@ buildFunctionSec functions = buildSectionHeader 0x03 section_size (length functi
 compileNumber :: Int -> [Word8]
 compileNumber val = wasmOpToCode I32const ++ buildNumber val
 
+getLocalIndex :: Int -> String -> [Local] -> Maybe Int
+getLocalIndex nb localVar ((x,_):rest)
+    | localVar == x = Just nb
+    | otherwise = getLocalIndex (nb + 1) localVar rest
+
 compileGetLocalVar :: String -> [Local] -> [Data] -> Either String ([Word8], [(String, Int)], [Data])
 compileGetLocalVar localVar localList datas = case mIndex of
     Nothing -> Left $ "Couldn't find local variable " ++ localVar
     Just i -> Right (wasmOpToCode $ LocalGet i, localList, datas)
     where
-        mIndex = lookup localVar localList
+        mIndex = getLocalIndex 0 localVar localList
 
 compileOp :: String -> [Word8]
 compileOp str = maybe [] wasmOpToCode opeOp
