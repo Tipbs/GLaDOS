@@ -1,29 +1,43 @@
 module Main (main) where
 import System.Environment (getArgs)
-import Lib (readExpr, eval, extractValue, trapError)
+import Lib (readExpr, eval, extractValue, trapError, Env)
 import System.IO (hFlush, stdout, hPutStrLn, stderr)
 import Parser (LispVal)
+import Wasm (buildWasm)
+import Data.Binary (Word8)
+import KopeParser (parseFile)
+import KopeParserLib (KopeVal (KopeArray))
+import qualified Data.ByteString as BS
 
-readLine :: String -> IO String
-readLine str = putStr str >> hFlush stdout >> getLine
+type Compile = (String, String) -- input output
+type Exec = String
+type Output = String
+data Args = Args (Maybe Compile) (Maybe Exec)
 
-evalReadedLine :: [(String, LispVal)] -> IO ()
-evalReadedLine env = do
-    line <- readLine ">> "
-    case line of
-        "quit" -> return ()
-        _ -> do putStrLn $ evalArgs line
-                evalReadedLine env
+parseArgs :: [String] -> Maybe Args
+parseArgs ["-c", str, "-o", out] = Just $ Args (Just (str, out)) Nothing
+parseArgs ["-e", str] = Just $ Args Nothing (Just str)
+parseArgs _ = Nothing
 
-evalArgs :: String -> String
-evalArgs arg = extractValue $ trapError evaled
-    where
-        evaled = fmap show $ readExpr arg >>= eval
+buildFile :: String -> IO (Either String [Word8])
+buildFile path = do
+    parsed <- parseFile path
+    case parsed of
+        Nothing -> return $ Left "Error while parsing"
+        (Just (KopeArray arr)) -> return $ buildWasm arr
+        _ -> return $ Left "Impossible case"
+
+printBuilded :: String -> String -> IO ()
+printBuilded input output = do
+    builded <- buildFile input
+    case builded of
+        (Right val) -> BS.writeFile output (BS.pack val)
+        (Left err) -> putStrLn err
 
 main :: IO ()
 main = do
     args <- getArgs
-    case length args of
-        0 -> evalReadedLine []
-        1 -> putStrLn $ evalArgs $ head args
-        _ -> hPutStrLn stderr "USAGE: 1 or 0 arguments are required"
+    case parseArgs args of
+        Just (Args (Just (input, output)) Nothing) -> printBuilded input output
+        Just (Args Nothing (Just exec)) -> putStrLn ("compiled: " ++ exec)
+        _ -> hPutStrLn stderr "USAGE: ./glados [-c file.kop -o output.wasm] | [-e file.wasm]"

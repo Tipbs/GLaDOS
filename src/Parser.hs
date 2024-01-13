@@ -1,14 +1,16 @@
 {-# LANGUAGE InstanceSigs #-}
-module Parser (LispVal (Atom, List, DottedList, Number, String, Bool), lispValP, charP, stringP, Parser (runParser)) where
+module Parser (LispVal (..), lispValP, charP, stringP, Parser (runParser)) where
 import Control.Applicative (Alternative (empty, some, many), (<|>))
 import Data.Char (isDigit, isLetter, isSpace)
 
 data LispVal = Atom String
              | List [LispVal]
              | DottedList [LispVal] LispVal
-             | Number Integer
+             | Number Int
              | String String
              | Bool Bool
+             | Func { name :: String, params :: [String],
+               body :: [LispVal] }
              deriving (Eq)
 instance Show LispVal where show = showVal
 
@@ -47,7 +49,7 @@ instance Applicative Parser where
 
 instance Alternative Parser where
     empty :: Parser a
-    empty = Parser $ \_ -> Nothing
+    empty = Parser $ const Nothing
     (<|>) :: Parser a -> Parser a -> Parser a
     (Parser p1) <|> (Parser p2) = Parser $ \input -> p1 input <|> p2 input
 

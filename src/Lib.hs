@@ -1,4 +1,4 @@
-module Lib (readExpr, eval, trapError, extractValue) where
+module Lib (readExpr, eval, trapError, extractValue, Env) where
 -- import Text.ParserCombinators.Parsec
 --     ( char,
 --       digit,
@@ -16,8 +16,11 @@ module Lib (readExpr, eval, trapError, extractValue) where
 --       try,
 --       ParseError,
 --       Parser )
-import Control.Monad.Except (MonadError(catchError, throwError))
+import Control.Monad.Except (MonadError(catchError, throwError), ExceptT)
 import Parser (lispValP, Parser (runParser), LispVal (Atom, List, DottedList, Number, String, Bool))
+import Data.Binary (Word8)
+import Data.IORef (IORef, newIORef)
+import Data.Maybe (fromMaybe)
 
 -- data LispVal = Atom String
 --              | List [LispVal]
@@ -33,6 +36,7 @@ data LispError = NumArgs Integer [LispVal]
                 | Parser String
                 | NotFunction String String
                 | UnboundVar String String
+                | AlreadyDefinedVar String
 instance Show LispError where show = showError
 
 type ThrowsError = Either LispError -- on donne que la première partie du Either, le reste doit-être passé au type
@@ -47,6 +51,7 @@ extractValue (Right val) = val
 
 showError :: LispError -> String
 showError (UnboundVar message varname)  = message ++ ": " ++ varname
+showError (AlreadyDefinedVar message)  = message
 showError (BadSpecialForm message form) = message ++ ": " ++ show form
 showError (NotFunction message func)    = message ++ ": " ++ show func
 showError (NumArgs expected found)      = "Expected " ++ show expected
@@ -74,9 +79,9 @@ showVal (List contents) = "(" ++ unwordsList contents ++ ")"
 showVal (DottedList h t) = "(" ++ unwordsList h ++ " . " ++ showVal t ++ ")"
 
 -- comprendre unpackNum
-unpackNum :: LispVal -> ThrowsError Integer
+unpackNum :: LispVal -> ThrowsError Int
 unpackNum (Number n) = return n
-unpackNum (String n) = let parsed = reads n :: [(Integer, String)] in
+unpackNum (String n) = let parsed = reads n :: [(Int, String)] in
                            if null parsed
                               then throwError $ TypeMismatch "number" $ String n
                               else return $ fst $ head parsed
@@ -128,7 +133,7 @@ eqv [_, _] = return $ Bool False
 eqv badArg = throwError $ NumArgs 2 badArg
 
 -- appelle juste fonction sur tout éléments, accumule résultats avec fold
-numericBinop :: (Integer -> Integer -> Integer) -> [LispVal] -> ThrowsError LispVal
+numericBinop :: (Int -> Int -> Int) -> [LispVal] -> ThrowsError LispVal
 numericBinop _ [] = throwError $ NumArgs 2 []
 numericBinop _ singleVal@[_] = throwError $ NumArgs 2 singleVal
 numericBinop op params = mapM unpackNum params >>= return . Number . foldl1 op
@@ -141,7 +146,7 @@ boolBinop unpacker op args = if length args /= 2
                                 right <- unpacker $ args !! 1
                                 return $ Bool $ left `op` right
 
-numBoolBinop :: (Integer -> Integer -> Bool) -> [LispVal] -> ThrowsError LispVal
+numBoolBinop :: (Int -> Int -> Bool) -> [LispVal] -> ThrowsError LispVal
 numBoolBinop = boolBinop unpackNum
 
 boolBoolBinop :: (Bool -> Bool -> Bool) -> [LispVal] -> ThrowsError LispVal
@@ -178,23 +183,52 @@ primitives = [("+", numericBinop (+)),
               ("eqv?", eqv)
             ]
 
-apply :: String -> [LispVal] -> ThrowsError LispVal
+apply :: String -> [(LispVal, Env)] -> ThrowsError LispVal
 apply func args = maybe (throwError $ NotFunction "Unrecognized primitive function args" func)
-                        ($ args)
+                        ($ lispList)
                         (lookup func primitives)
+    where
+        lispList = map fst args
 
-eval :: LispVal -> ThrowsError LispVal
-eval val@(String _) = return val -- @ totalement op, permet de récupérer toute la variable malgré pattern matching
-eval val@(Number _) = return val
-eval val@(Bool _) = return val
-eval (List [Atom "quote", val]) = return val
-eval (List [Atom "if", cond, itrue, ifalse]) =
-     do result <- eval cond
+liftEnv :: Env -> ThrowsError LispVal -> ThrowsError (LispVal, Env) 
+liftEnv _ (Left err) = throwError err
+liftEnv env (Right val) = return (val, env)
+
+defineVar :: String -> (LispVal, Env) -> ThrowsError (LispVal, Env)
+defineVar var (form, env) = case lookup var env of
+    Just _ -> throwError $ AlreadyDefinedVar $ "Variable already defined: " ++ var
+    Nothing -> return (form, (var, form) : env)
+
+removeItem :: Env -> String -> Env
+removeItem [] _ = []
+removeItem ((x,y):xs) var
+    | x == var = xs
+    | otherwise = (x,y): removeItem xs var
+
+setVar :: String -> (LispVal, Env) -> ThrowsError (LispVal, Env)
+setVar var (form, env) = case lookup var env of
+    Nothing -> throwError $ UnboundVar "Unbound variable" var
+    Just _ -> return (form, (var, form) : removeItem env var)
+
+eval :: Env -> LispVal -> ThrowsError (LispVal, Env)
+eval env val@(String _) = return (val, env) -- @ totalement op, permet de récupérer toute la variable malgré pattern matching
+eval env val@(Number _) = return (val, env)
+eval env val@(Bool _) = return (val, env)
+eval env (Atom varname) = parsed env (lookup varname env)
+    where
+        parsed :: Env -> Maybe LispVal -> ThrowsError (LispVal, Env)
+        parsed _ Nothing = throwError $ UnboundVar "Unbound variable" varname
+        parsed e (Just var) = return (var, e)
+eval env (List [Atom "quote", val]) = return (val, env)
+eval env (List [Atom "if", cond, itrue, ifalse]) =
+     do result <- eval env cond
         case result of
-             Bool False -> eval ifalse
-             _  -> eval itrue
-eval (List (Atom func : args)) = mapM eval args >>= apply func
-eval badForm = throwError $ BadSpecialForm "Unrecognized special form" badForm
+             (Bool False, _) -> eval env ifalse
+             _  -> eval env itrue
+eval env (List [Atom "set", Atom var, form]) = eval env form >>= setVar var
+eval env (List [Atom "define", Atom var, form]) = eval env form >>= defineVar var
+eval env (List (Atom func : args)) = mapM (eval env) args >>= liftEnv env . apply func
+eval env badForm = throwError $ BadSpecialForm "Unrecognized special form" badForm
 
 readExpr :: String -> ThrowsError LispVal
 readExpr input = case runParser lispValP input of
