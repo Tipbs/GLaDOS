@@ -130,11 +130,17 @@ buildDataSec datas = buildSectionHeader 0x0b section_size (length datas) ++ conc
         concated = concat data_segments
         section_size = length concated
 
+compileLocalDeclTypes :: [Word8] -> [Word8]
+compileLocalDeclTypes local_count = written_count ++ local_count ++ [0x7f]
+    where
+        written_count = if null local_count then [0] else [1]
+
 compileFunctionBody :: KopeVal -> [KopeVal] -> [Data] -> Either String ([Word8], [Local], [Data])
 compileFunctionBody (KopeFunc _ ps bod) funcs oldDatas = case evaledFunc of
     (Right (bytes, locals, datas)) ->
         let local_decl_count = buildNumber (length locals - length ps)
-            header = buildNumber (length bytes + 1 + length local_decl_count) ++ local_decl_count -- +1 for end
+            local_decl_types = compileLocalDeclTypes local_decl_count
+            header = buildNumber (length bytes + length local_decl_count + length local_decl_types) ++ local_decl_types
             in Right (header ++ bytes ++ wasmOpToCode EndFunc, locals, datas ++ oldDatas)
     v@(Left _) -> v
     where
@@ -153,10 +159,11 @@ compileFunctionBody _ _ _ = Left "Invalid call to compileFunctionBody"
 compileExpr :: KopeVal -> Stack -> [Local] -> [Data] -> Either String ([Word8], [Local], [Data])
 compileExpr f@(KopeFunc {}) funcs _ datas = compileFunctionBody f funcs datas
 compileExpr (KopeArray (KopeAtom "define": KopeAtom var: args)) funcs locals datas = case argsB of -- Right ([0x01, 0x7f], locals ++ [(var, form)], datas)
-    Right argsDat -> Right (concatMap (\(b, _, _) -> b) argsDat ++ [0x20] ++ buildNumber (length locals), locals ++ [(var, 0)], datas)
+    Right argsDat -> let (_, _, lastData) = last argsDat
+        in Right (concatMap (\(b, _, _) -> b) argsDat ++ [0x21] ++ buildNumber (length locals), locals ++ [(var, 0)], lastData)
     Left err -> Left err
     where
-        argsB = mapM (\arg -> compileExpr arg funcs locals []) args
+        argsB = mapM (\arg -> compileExpr arg funcs locals datas) args
 compileExpr (KopeNumber val) _ locals datas = Right (compileNumber val, locals, datas)
 compileExpr (KopeBool val) _ locals datas = Right (compileNumber nbVal, locals, datas)
     where
@@ -187,7 +194,7 @@ buildSectionBody funcs = combineEither concatedB concatedD
         concatedB = concatMap fst <$> mapped
         concatedD = concatMap snd <$> mapped
         combineEither :: Either String [Word8] -> Either String [Data] -> Either String ([Word8], [Data])
-        combineEither (Right b) (Right d) = Right (buildSectionHeader 0x0a (length b) (length funcs) ++ b, d)
+        combineEither (Right b) (Right d) = Right (buildSectionHeader 0x0A (length b) (length funcs) ++ b, d)
         combineEither (Left err) _ = Left err
         combineEither _ (Left err) = Left err
 
