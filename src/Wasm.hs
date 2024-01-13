@@ -1,4 +1,4 @@
-module Wasm (buildWasm, compileExpr, magic, version, buildSectionHeader, buildDataSec, buildDataSegments, buildSegmentHeader, getIdData, compileOp, WasmOp (..)) where
+module Wasm (buildWasm, compileExpr, magic, version, buildSectionHeader, buildDataSec, buildDataSegments, buildSegmentHeader, getIdData, compileOp, WasmOp (..), compileGetLocalVar) where
 import KopeParserLib (KopeVal (..))
 import Numeric (showHex)
 import Control.Monad (liftM, foldM)

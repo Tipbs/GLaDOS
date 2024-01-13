@@ -1,6 +1,6 @@
 import Test.HUnit
 import System.Exit
-import Wasm (magic, version, buildSectionHeader, buildWasm, compileOp, compileExpr, buildDataSec, buildDataSegments, buildSegmentHeader, getIdData)
+import Wasm (magic, version, buildSectionHeader, buildWasm, compileOp, compileExpr, buildDataSec, buildDataSegments, buildSegmentHeader, getIdData, compileGetLocalVar)
 import WasmNumber (buildNumber, decodeNumber, buildWords, buildString)
 import KopeParserLib (KopeVal (..))
 
@@ -28,6 +28,9 @@ testFunctionCallWrong = TestCase (assertEqual "wrong output for bad function cal
 
 testBuildWords :: Test
 testBuildWords = TestCase (assertEqual "buildWords for 624485" [101, 14, 38] (buildWords 624485))
+
+testCompileGetLocalVar :: Test -- Either String ([Word8], [(String, Int)], [Data])
+testCompileGetLocalVar = TestCase (assertEqual "test get local var with 3 locals" (Right ([0x20, 0x3], [("a", 5), ("b", 10), ("c", 15)], [])) (compileGetLocalVar "c" [("a", 5), ("b", 10), ("c", 15)] []))
 
 -- 1001 1000 0111 0110 0101
 -- 1001 1000 0111 0110 0101
@@ -98,6 +101,7 @@ wasmTests = TestList [
         TestLabel "get string id with hello world" testGetIdData,
         TestLabel "build segment header with hello world" testBuildSegmentHeader,
         TestLabel "build data segments with hello world" testBuildDataSegments,
+        TestLabel "build get local var with 3 locals" testCompileGetLocalVar,
         TestLabel "build data with hello world" testBuildDataSec
     ]
 
