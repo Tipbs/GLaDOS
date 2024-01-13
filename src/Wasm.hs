@@ -1,4 +1,4 @@
-module Wasm (buildWasm, compileExpr, magic, version, buildSectionHeader, buildDataSec, compileOp, WasmOp (..)) where
+module Wasm (buildWasm, compileExpr, magic, version, buildSectionHeader, buildDataSec, buildDataSegments, buildSegmentHeader, getIdData, compileOp, WasmOp (..)) where
 import Parser (LispVal (..))
 import Numeric (showHex)
 import Control.Monad (liftM, foldM)

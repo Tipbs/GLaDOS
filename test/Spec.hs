@@ -1,7 +1,7 @@
 import Test.HUnit
 import System.Exit
-import Wasm (magic, version, buildSectionHeader, buildWasm, compileOp, compileExpr, buildDataSec)
-import WasmNumber (buildNumber, decodeNumber, buildWords)
+import Wasm (magic, version, buildSectionHeader, buildWasm, compileOp, compileExpr, buildDataSec, buildDataSegments, buildSegmentHeader, getIdData)
+import WasmNumber (buildNumber, decodeNumber, buildWords, buildString)
 import Parser (LispVal (..))
 
 testMagic :: Test
@@ -60,8 +60,21 @@ testSimpleBuildWasm2 = TestCase (assertEqual "Wrong buildwasm for simple with su
 -- Right [0,97,115,109,1,0,0,0,1,7,1,96,2,127,127,1,127,3,2,1,0,5,0,32,0,32,1,107,11]
 -- ["0","61","73","6d","1","0","0","0","1","7","1","60","2","7f","7f","1","7f","3","2","1","0","a","8","1","5","0","20","0","20","1","6b","b"]
 
+testBuildString :: Test
+testBuildString = TestCase (assertEqual "wrong buildString output with HelloWorld!" [0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x20, 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x21, 0x00] (buildString "Hello World!"))
+
+testGetIdData :: Test
+testGetIdData = TestCase (assertEqual "wrong getIdData output with HelloWorld!" 1 (getIdData 0 (String "Hello World!") [String "Test", String "Hello World!"]))
+
+testBuildSegmentHeader :: Test
+testBuildSegmentHeader = TestCase (assertEqual "wrong buildSegmentHeader output with HelloWorld!" [0x00, 0x41, 0x00, 0x0b] (buildSegmentHeader 0))
+
+testBuildDataSegments :: Test
+testBuildDataSegments = TestCase (assertEqual "wrong buildDataSegments output with HelloWorld!" [0x00, 0x41, 0x00, 0x0b, 0x0d, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x20, 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x21, 0x00] (buildDataSegments (String "Hello World!") [String "Hello World!"]))
+
 testBuildDataSec :: Test
-testBuildDataSec = TestCase (assertEqual "wrong buildNumber output with 624485" [0x0b, 0x13, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x0d, 0x48, 0x65 , 0x6c, 0x6c , 0x6f, 0x20, 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x21, 0x00] (buildDataSec [String "Hello World!"]))
+testBuildDataSec = TestCase (assertEqual "wrong buildDataSec output with HelloWorld!" [0x0b, 0x13, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x0d, 0x48, 0x65 , 0x6c, 0x6c , 0x6f, 0x20, 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x21, 0x00] (buildDataSec [String "Hello World!"]))
+
 
 wasmTests :: Test
 wasmTests = TestList [
@@ -77,6 +90,10 @@ wasmTests = TestList [
         TestLabel "build unsuccessful function call" testFunctionCallWrong,
         TestLabel "build simple program with one function" testSimpleBuildWasm,
         TestLabel "build simple program with 2 functions calling each other" testSimpleBuildWasm2,
+        TestLabel "build string with hello world" testBuildString,
+        TestLabel "get string id with hello world" testGetIdData,
+        TestLabel "build segment header with hello world" testBuildSegmentHeader,
+        TestLabel "build data segments with hello world" testBuildDataSegments,
         TestLabel "build data with hello world" testBuildDataSec
     ]
 
