@@ -4,12 +4,12 @@ import Data.Binary.Get
 import qualified Data.ByteString.Lazy as BL
 import Data.Word
 import WasmNumber (decodeNumber)
-import Control.Applicative (Alternative(many))
 import Data.Bits ((.&.))
-import Data.Binary (Binary(put))
+import Control.Monad (replicateM)
 
 data WasmModule = WasmModule {
-    wasmFuncs :: [WasmFunction]
+    wasmFuncs :: [WasmFunction],
+    wasmFuncBodies :: [[Word8]]
 }
 
 data WasmFunction = WasmFunction {
@@ -20,7 +20,7 @@ data WasmFunction = WasmFunction {
 data ParamsType = I32 | I64
 
 instance Show WasmModule where
-    show (WasmModule functions) = "Functions: " ++ show functions
+    show (WasmModule functions bodies) = "Functions: " ++ show functions ++ show bodies
 
 instance Show WasmFunction where
     show (WasmFunction paramsNb typeParams) =
@@ -77,22 +77,47 @@ parseWasmBytes wasmModule = do
     empty <- isEmpty
     if empty
         then
-            return WasmModule { wasmFuncs = validWasmFunction (wasmFuncs wasmModule) }
+            return WasmModule { wasmFuncs = validWasmFunction (wasmFuncs wasmModule), wasmFuncBodies = []}
         else do
             byte <- getWord8
             funcs <- case byte of
                 0x60 -> parseWasmFunctions True
                 _ -> parseWasmFunctions False
-            parseWasmBytes WasmModule { wasmFuncs = wasmFuncs wasmModule ++ [funcs]}
+            parseWasmBytes WasmModule { wasmFuncs = wasmFuncs wasmModule ++ [funcs], wasmFuncBodies = []}
+
+parseSectionType :: Get ()
+parseSectionType = do
+    code <- getWord8
+    case code of
+        0x01 -> do
+            sec_len <- parseNumber
+            skip sec_len
+        _ -> fail "Section type wasn't found after version"
+
+parseFunctionCode :: Get [Word8]
+parseFunctionCode = do
+    len <- parseNumber
+    replicateM len getWord8
+
+parseSectionCode :: Get [[Word8]]
+parseSectionCode = do
+    code <- getWord8
+    case code of
+        0x0a -> do
+            func_count <- parseNumber
+            replicateM func_count parseFunctionCode
+        _ -> fail "Section code isn't after section fonction (could be normal)"
+
 
 parseWasmModule :: Get WasmModule
 parseWasmModule = do
     magic <- getWord32be
-    if magic /= 0x0061736d
+    version <- getWord32be
+    if magic /= 0x0061736d || version /= 0x01
         then
-            fail "Wrong magic number"
+            fail "Wrong magic or version number"
         else do
-            parseWasmBytes WasmModule { wasmFuncs = []}
+            parseWasmBytes WasmModule {wasmFuncs = [], wasmFuncBodies = []}
 
 parseWasmFile :: FilePath -> IO (Either String WasmModule)
 parseWasmFile filePath = do
