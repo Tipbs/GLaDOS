@@ -3,14 +3,17 @@ module WASMParser (wasmParser) where
 import Data.Binary.Get
 import qualified Data.ByteString.Lazy as BL
 import Data.Word
-import Data.Int
+import WasmNumber (decodeNumber)
+import Control.Applicative (Alternative(many))
+import Data.Bits ((.&.))
+import Data.Binary (Binary(put))
 
 data WasmModule = WasmModule {
     wasmFuncs :: [WasmFunction]
 }
 
 data WasmFunction = WasmFunction {
-    nbParams :: Word8,
+    nbParams :: Int,
     paramsType :: [ParamsType]
 }
 
@@ -28,12 +31,12 @@ instance Show ParamsType where
     show I32 = "i32"
     show I64 = "i64"
 
-getWasmType :: Integer -> [ParamsType] -> Get [ParamsType]
+getWasmType :: Int -> [ParamsType] -> Get [ParamsType]
 getWasmType n typesParams = do
     if n == 0
         then
             return typesParams
-        else do 
+        else do
             byte <- getWord8
             paramType <- case byte of
                 0x7f -> return I32
@@ -41,14 +44,26 @@ getWasmType n typesParams = do
                 _ -> return I32
             getWasmType (n - 1) (typesParams ++ [paramType])
 
+parseLebWords :: Get [Word8]
+parseLebWords = do
+    byte <- getWord8
+    if byte .&. 128 /= 0
+        then return [byte]
+        else do
+            rest <- parseLebWords
+            return (byte : rest)
+
+parseNumber :: Get Int
+parseNumber = decodeNumber <$> parseLebWords
+
 parseWasmFunctions :: Bool -> Get WasmFunction
 parseWasmFunctions doParse = do
     if not doParse
         then
             return WasmFunction { nbParams = 0, paramsType = []}
         else do
-            paramsNb <- getWord8
-            params <- getWasmType (fromIntegral paramsNb) []
+            paramsNb <- parseNumber
+            params <- getWasmType paramsNb []
             return WasmFunction { nbParams = paramsNb, paramsType = params }
 
 validWasmFunction :: [WasmFunction] -> [WasmFunction]

@@ -27,8 +27,8 @@ decodeWord byte it = w
         w :: Word32
         w = shiftL (fromIntegral withoutHigh) (8 * it)
 
-decodeNumber :: [Word8] -> (Int, Int)
-decodeNumber bytes = (fromIntegral word, stolenBytes)
+decodeNumber :: [Word8] -> Int
+decodeNumber bytes = fromIntegral word
     where
         nbBytes = takeWhile (\b -> (b .&. 128) /= 0) bytes
         stolenBytes = length nbBytes
