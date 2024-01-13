@@ -18,6 +18,7 @@ module Lib (readExpr, eval, trapError, extractValue, Env) where
 --       Parser )
 import Control.Monad.Except (MonadError(catchError, throwError), ExceptT)
 import Parser (lispValP, Parser (runParser), LispVal (Atom, List, DottedList, Number, String, Bool))
+import Data.Binary (Word8)
 import Data.IORef (IORef, newIORef)
 import Data.Maybe (fromMaybe)
 

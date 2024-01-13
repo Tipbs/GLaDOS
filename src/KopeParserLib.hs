@@ -6,7 +6,7 @@ import Data.Char
 data KopeVal = KopeNull
   | KopeAtom String
   | KopeBool Bool
-  | KopeNumber Integer
+  | KopeNumber Int
   | KopeString String
   | KopeArray [KopeVal]
   | KopeFunc { funcName :: String, funcParams :: [String],
