@@ -50,6 +50,8 @@ executables:
     dependencies:
     - glados-exe
     - mtl
+    - binary
+    - bytestring
 
 tests:
   glados-test:
@@ -62,3 +64,4 @@ tests:
     dependencies:
     - glados-exe
     - mtl
+    - HUnit
