@@ -49,10 +49,10 @@ spanP f = Parser $ \input -> do
   Just (rest, valid)
 
 ws :: Parser String
-ws = spanP isSpace
+ws = spanP isSpace <|> spanP (`elem` "\n")
 
 oneOfP :: [String] -> Parser KopeVal
-oneOfP tokens = Parser $ \input -> f tokens input 
+oneOfP tokens = Parser $ \input -> f tokens input
     where
         f (x: xs) input
           | runParser (stringP x) input == Nothing = f xs input
@@ -70,4 +70,7 @@ stringP :: String -> Parser String
 stringP = sequenceA . map charP
 
 letterP :: Parser String
-letterP = spanP (\input -> isLetter input || (== '_') input)
+letterP = notNull $ spanP (\input -> isLetter input || (== '_') input)
+
+removeNewline :: String -> String
+removeNewline xs = [ x | x <- xs, x /= '\n' ]
