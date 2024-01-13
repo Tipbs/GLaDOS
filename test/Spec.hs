@@ -30,7 +30,7 @@ testBuildWords :: Test
 testBuildWords = TestCase (assertEqual "buildWords for 624485" [101, 14, 38] (buildWords 624485))
 
 testCompileGetLocalVar :: Test -- Either String ([Word8], [(String, Int)], [Data])
-testCompileGetLocalVar = TestCase (assertEqual "test get local var with 3 locals" (Right ([0x20, 0x3], [("a", 5), ("b", 10), ("c", 15)], [])) (compileGetLocalVar "c" [("a", 5), ("b", 10), ("c", 15)] []))
+testCompileGetLocalVar = TestCase (assertEqual "test get local var with 3 locals" (Right ([0x20, 0x2], [("a", 5), ("b", 10), ("c", 15)], [])) (compileGetLocalVar "c" [("a", 5), ("b", 10), ("c", 15)] []))
 
 -- 1001 1000 0111 0110 0101
 -- 1001 1000 0111 0110 0101
@@ -80,7 +80,6 @@ testBuildDataSegments = TestCase (assertEqual "wrong buildDataSegments output wi
 
 testBuildDataSec :: Test
 testBuildDataSec = TestCase (assertEqual "wrong buildDataSec output with HelloWorld!" [0x0b, 0x13, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x0d, 0x48, 0x65 , 0x6c, 0x6c , 0x6f, 0x20, 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x21, 0x00] (buildDataSec [KopeString "Hello World!"]))
-
 
 wasmTests :: Test
 wasmTests = TestList [
