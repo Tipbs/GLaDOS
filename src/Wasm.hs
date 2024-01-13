@@ -65,7 +65,6 @@ compileNumber :: Int -> [Word8]
 compileNumber val = wasmOpToCode I32const ++ buildNumber val
 
 getLocalIndex :: Int -> String -> [Local] -> Maybe Int
-getLocalIndex _ _ _ = Nothing
 getLocalIndex nb localVar ((x,_):rest)
     | localVar == x = Just nb
     | otherwise = getLocalIndex (nb + 1) localVar rest
@@ -110,17 +109,14 @@ buildSegmentHeader :: Int -> [Word8]
 buildSegmentHeader idx = [0x00, 0x41] ++ buildNumber idx ++ [0x0b]
 
 getIdData :: Int -> Data -> [Data] -> Int
-getIdData _ _ _ = 0
 getIdData len (KopeString func) (KopeString x:datas)
     | func == x = len
     | otherwise = getIdData (len + 1) (KopeString func) datas
 
 getSegDataSize :: Data -> Int
-getSegDataSize _ = 0
 getSegDataSize (KopeString func) = length (buildString func)
 
 buildDataSegments :: Data -> [Data] -> [Word8]
-buildDataSegments _ _ = []
 buildDataSegments (KopeString func) datas = buildSegmentHeader id_data ++ buildNumber segLen ++ buildString func
     where
         id_data = getIdData 0 (KopeString func) datas
@@ -163,7 +159,7 @@ compileFunctionBody _ _ _ = Left "Invalid call to compileFunctionBody"
 -- debugHex $ fst (compileExpr (List [Atom "add", Number 5]) [Func "add" ["a", "b"] [Number 5], Func "sub" ["a", "b"] [Number 5]] [])
 compileExpr :: KopeVal -> Stack -> [Local] -> [Data] -> Either String ([Word8], [Local], [Data])
 compileExpr f@(KopeFunc {}) funcs _ datas = compileFunctionBody f funcs datas
-compileExpr (KopeString str) _ locals datas = Right (0x41 : buildNumber (length datas), locals, datas ++ [KopeString str])
+compileExpr (KopeString str) funcs locals datas = Right (0x41 : buildNumber (length datas), locals, datas ++ [KopeString str])
 compileExpr (KopeArray (KopeAtom "define": KopeAtom var: args)) funcs locals datas = case argsB of -- Right ([0x01, 0x7f], locals ++ [(var, form)], datas)
     Right argsDat -> let (_, _, lastData) = last argsDat
         in Right (concatMap (\(b, _, _) -> b) argsDat ++ [0x21] ++ buildNumber (length locals), locals ++ [(var, 0)], lastData)
