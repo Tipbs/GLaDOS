@@ -159,7 +159,7 @@ compileFunctionBody _ _ _ = Left "Invalid call to compileFunctionBody"
 -- debugHex $ fst (compileExpr (List [Atom "add", Number 5]) [Func "add" ["a", "b"] [Number 5], Func "sub" ["a", "b"] [Number 5]] [])
 compileExpr :: KopeVal -> Stack -> [Local] -> [Data] -> Either String ([Word8], [Local], [Data])
 compileExpr f@(KopeFunc {}) funcs _ datas = compileFunctionBody f funcs datas
-compileExpr (KopeString str) funcs locals datas = Right ([], locals, datas ++ [KopeString str])
+compileExpr (KopeString str) funcs locals datas = Right (0x41 : buildNumber (length datas), locals, datas ++ [KopeString str])
 compileExpr (KopeArray (KopeAtom "define": KopeAtom var: args)) funcs locals datas = case argsB of -- Right ([0x01, 0x7f], locals ++ [(var, form)], datas)
     Right argsDat -> let (_, _, lastData) = last argsDat
         in Right (concatMap (\(b, _, _) -> b) argsDat ++ [0x21] ++ buildNumber (length locals), locals ++ [(var, 0)], lastData)
