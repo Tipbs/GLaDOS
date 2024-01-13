@@ -117,7 +117,7 @@ getSegDataSize :: Data -> Int
 getSegDataSize (KopeString func) = length (buildString func)
 
 buildDataSegments :: Data -> [Data] -> [Word8]
-buildDataSegments (KopeString func) datas = buildSegmentHeader id_data ++ buildNumber segLen ++ buildString func 
+buildDataSegments (KopeString func) datas = buildSegmentHeader id_data ++ buildNumber segLen ++ buildString func
     where
         id_data = getIdData 0 (KopeString func) datas
         segLen = getSegDataSize (KopeString func)
@@ -152,7 +152,11 @@ compileFunctionBody _ _ _ = Left "Invalid call to compileFunctionBody"
 -- debugHex $ fst (compileExpr (List [Atom "add", Number 5]) [Func "add" ["a", "b"] [Number 5], Func "sub" ["a", "b"] [Number 5]] [])
 compileExpr :: KopeVal -> Stack -> [Local] -> [Data] -> Either String ([Word8], [Local], [Data])
 compileExpr f@(KopeFunc {}) funcs _ datas = compileFunctionBody f funcs datas
-compileExpr (KopeArray [KopeAtom "define", KopeAtom var, KopeNumber form]) _ locals datas = Right ([0x01, 0x7f], locals ++ [(var, form)], datas)
+compileExpr (KopeArray (KopeAtom "define": KopeAtom var: args)) funcs locals datas = case argsB of -- Right ([0x01, 0x7f], locals ++ [(var, form)], datas)
+    Right argsDat -> Right (concatMap (\(b, _, _) -> b) argsDat ++ [0x20] ++ buildNumber (length locals), locals ++ [(var, 0)], datas)
+    Left err -> Left err
+    where
+        argsB = mapM (\arg -> compileExpr arg funcs locals []) args
 compileExpr (KopeNumber val) _ locals datas = Right (compileNumber val, locals, datas)
 compileExpr (KopeBool val) _ locals datas = Right (compileNumber nbVal, locals, datas)
     where
