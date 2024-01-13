@@ -3,6 +3,7 @@ import System.Exit
 import Wasm (magic, version, buildSectionHeader, buildWasm, compileOp, compileExpr, buildDataSec, buildDataSegments, buildSegmentHeader, getIdData)
 import WasmNumber (buildNumber, decodeNumber, buildWords, buildString)
 import Parser (LispVal (..))
+import KopeTests
 
 testMagic :: Test
 testMagic = TestCase (assertEqual "wrong magic value" ([0x00, 0x61, 0x73, 0x6d]) magic)
@@ -97,7 +98,13 @@ wasmTests = TestList [
         TestLabel "build data with hello world" testBuildDataSec
     ]
 
+allTests :: Test
+allTests = TestList [
+    TestLabel "Kope Tests" kopeTests,
+    TestLabel "Wasm Tests" wasmTests
+  ]
+
 main :: IO ()
 main = do
-    results <- runTestTT wasmTests
+    results <- runTestTT allTests
     if failures results > 0 then System.Exit.exitFailure else System.Exit.exitSuccess

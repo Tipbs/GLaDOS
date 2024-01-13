@@ -72,5 +72,5 @@ stringP = sequenceA . map charP
 letterP :: Parser String
 letterP = notNull $ spanP (\input -> isLetter input || (== '_') input)
 
-removeNewline :: String -> String
-removeNewline xs = [ x | x <- xs, x /= '\n' ]
+-- removeNewline :: String -> String
+-- removeNewline xs = [ x | x <- xs, x /= '\n' ]
