@@ -163,7 +163,7 @@ parseExpr (x: xs) = Parser $ \input -> do
           _ -> Just (rest, acc)
 
 kopeExpr :: Parser KopeVal
-kopeExpr = parseExpr [["&&", "||"], ["==", "/="], ["+", "-"], ["*", "/"]]
+kopeExpr = parseExpr [["&&", "||"], ["==", "/=", "<=", ">=", "<", ">"], ["+", "-"], ["*", "/"]]
 
 kopeFile :: Parser KopeVal
 kopeFile = KopeArray <$> many (ws *> kopeFunc <* ws)
