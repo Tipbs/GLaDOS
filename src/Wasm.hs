@@ -124,6 +124,7 @@ buildDataSegments (KopeString func) datas = buildSegmentHeader id_data ++ buildN
 
 
 buildDataSec :: [Data] -> [Word8]
+buildDataSec [] = []
 buildDataSec datas = buildSectionHeader 0x0b section_size (length datas) ++ concated
     where
         data_segments = map (`buildDataSegments` datas) datas
@@ -158,6 +159,7 @@ compileFunctionBody _ _ _ = Left "Invalid call to compileFunctionBody"
 -- debugHex $ fst (compileExpr (List [Atom "add", Number 5]) [Func "add" ["a", "b"] [Number 5], Func "sub" ["a", "b"] [Number 5]] [])
 compileExpr :: KopeVal -> Stack -> [Local] -> [Data] -> Either String ([Word8], [Local], [Data])
 compileExpr f@(KopeFunc {}) funcs _ datas = compileFunctionBody f funcs datas
+compileExpr (KopeString str) funcs locals datas = Right ([], locals, datas ++ [KopeString str])
 compileExpr (KopeArray (KopeAtom "define": KopeAtom var: args)) funcs locals datas = case argsB of -- Right ([0x01, 0x7f], locals ++ [(var, form)], datas)
     Right argsDat -> let (_, _, lastData) = last argsDat
         in Right (concatMap (\(b, _, _) -> b) argsDat ++ [0x21] ++ buildNumber (length locals), locals ++ [(var, 0)], lastData)
@@ -184,6 +186,21 @@ compileExpr (KopeArray (KopeAtom func : args)) funcs locals datas = case checked
         checked = checkBoth argsB functionCall
 compileExpr _ _ _ _ = Left "Not defined yet"
         -- concated = beforeB ++ getFunctionCall func funcs
+        --
+
+buildOneMemory :: [Word8]
+buildOneMemory = [0x00, 0x00]
+
+buildMemorySec :: [Data] -> [Word8]
+buildMemorySec [] = []
+buildMemorySec _ = buildSectionHeader 0x05 section_size 1 ++ memory
+    where
+        memory = buildOneMemory
+        section_size = length memory
+
+buildDataCountSec :: [Data] -> [Word8]
+buildDataCountSec [] = []
+buildDataCountSec datas = buildSectionHeader 0x0c 0 (length datas)
 
 -- code horrible
 buildSectionBody :: [KopeVal] -> Either String ([Word8], [Data])
@@ -200,7 +217,7 @@ buildSectionBody funcs = combineEither concatedB concatedD
 
 buildWasm :: [KopeVal] -> Either String [Word8]
 buildWasm funcs = case bo of
-    Right (bodyBytes, _) -> Right $ magic ++ version ++ buildSectionType funcs ++ buildFunctionSec funcs ++ bodyBytes
+    Right (bodyBytes, datas) -> Right $ magic ++ version ++ buildSectionType funcs ++ buildFunctionSec funcs ++ buildMemorySec datas ++ buildDataCountSec datas ++ bodyBytes ++ buildDataSec datas
     (Left err) -> Left err
     where
         bo = buildSectionBody funcs
