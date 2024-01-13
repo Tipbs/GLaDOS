@@ -47,7 +47,7 @@ getWasmType n typesParams = do
 parseLebWords :: Get [Word8]
 parseLebWords = do
     byte <- getWord8
-    if byte .&. 128 /= 0
+    if byte .&. 128 == 0
         then return [byte]
         else do
             rest <- parseLebWords
