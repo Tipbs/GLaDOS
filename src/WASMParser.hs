@@ -156,7 +156,8 @@ parseSections = do
     case functions_strings of
         Just names -> do
             let functions = map (\(n, p_count) -> WasmFunction {nbParams = p_count, name = n}) (zip names functions_params)
-            return WasmModule {wasmFuncs = functions}
+            bodies <- parseSectionCode
+            return WasmModule {wasmFuncs = functions, wasmFuncBodies = bodies}
         _ -> fail "One function had no export which match its index"
     -- let functions_parsed = map (\i p_count -> WasmFunction {nbParams = p_count, name = lookup exports !! i}) (zip [0..length functions_params] functions_params)
 
@@ -169,7 +170,7 @@ parseWasmModule = do
         then
             fail "Wrong magic or version number"
         else do
-            parseWasmBytes WasmModule {wasmFuncs = [], wasmFuncBodies = []}
+            parseSections
 
 parseWasmFile :: FilePath -> IO (Either String WasmModule)
 parseWasmFile filePath = do
