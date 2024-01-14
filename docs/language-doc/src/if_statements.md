@@ -12,7 +12,7 @@ if (condition) {
 
 If you'd like to see a real example
 
-#### **`main.???`**
+#### **`main.kop`**
 ```
 fn main(argc, argv)
 {

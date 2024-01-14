@@ -15,13 +15,13 @@ fn foobar(a, b)
 - `(a, b)` are the function arguments, define them using the parenthesis, then give them a name (here `a` and `b`)
 - `{ ... }` open the function, that's where your code will go
 
-Functions can also return a value using the `return` keyword followed by a value (example: `return 4`.
+Functions can also return a value using the `return` keyword followed by a value (example: `return 4`).
 
 ### Alright, now that you know how to create a function, let's introduce the `main` function.
 
 The `main` function is the function that is being executed first, so if we want to write a Hello world!, then we'll have to create a main function:
 
-#### **`main.???`**
+#### **`main.kop`**
 ```
 fn main(argc, argv)
 {

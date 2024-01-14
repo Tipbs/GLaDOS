@@ -2,7 +2,7 @@
 
 Lists are used to store multiple arguments in 1 variable, in the format of an array.
 
-#### **`main.???`**
+#### **`main.kop`**
 ```
 int main(argc, argv)
 {
