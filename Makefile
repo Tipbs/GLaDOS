@@ -13,6 +13,9 @@ $(NAME):
 	stack build --copy-bins . --local-bin-path .
 	mv glados-exe $(NAME)
 
+run_tests:
+	stack test
+
 clean:
 	stack clean
 

@@ -15,24 +15,20 @@ fn foobar(a, b)
 - `(a, b)` are the function arguments, define them using the parenthesis, then give them a name (here `a` and `b`)
 - `{ ... }` open the function, that's where your code will go
 
-Functions can also return a value using the `return` keyword followed by a value (example: `return 4`.
+Functions can also return a value using the `return` keyword followed by a value (example: `return 4`).
 
 ### Alright, now that you know how to create a function, let's introduce the `main` function.
 
 The `main` function is the function that is being executed first, so if we want to write a Hello world!, then we'll have to create a main function:
 
-#### **`main.???`**
+#### **`main.kop`**
 ```
-fn main(argc, argv)
+fn main()
 {
 	print("Hello world!\n");
 }
 ```
 There you go, Hello world!
-
-The `main` function takes 2 arguments:
-- `argc`, being the number of arguments passed from the command line
-- `argv`, being an array containing the arguments passed from the command line
 
 The `print` function takes 1 argument, here a string, that is gonna be written to the screen. The `\n` at the end of the string means that we want to add a new-line at after the text.
 

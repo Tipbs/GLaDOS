@@ -2,7 +2,7 @@
 
 To create a variable, you need to use the keyword `var` and set a value. You don't need to precise the type of your variable, the language will process it and guess the type.
 
-#### **`main.???`**
+#### **`main.kop`**
 ```
 fn main(argc, argv)
 {

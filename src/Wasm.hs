@@ -3,11 +3,11 @@ import KopeParserLib (KopeVal (..))
 import Numeric (showHex)
 import Control.Monad (liftM, foldM)
 import Data.Binary (Word8)
-import WasmNumber (buildNumber, buildString)
+import WasmNumber (buildNumber, buildString, buildStringU)
 import Data.Either (isRight)
 import Control.Monad.Except (MonadError(throwError))
 
-data WasmOp = LocalSet Int | LocalGet Int | I32add | I32sub | I32mul | I32div | I32const | EndFunc | Return
+data WasmOp = LocalSet Int | LocalGet Int | I32add | I32sub | I32mul | I32div | I32const | EndFunc | Return | Print
     deriving (Eq)
 
 type Stack = [KopeVal]
@@ -25,6 +25,7 @@ wasmOpToCode I32div = [0x6d]
 wasmOpToCode I32const = [0x41]
 wasmOpToCode EndFunc = [0x0b]
 wasmOpToCode Return = []
+wasmOpToCode Print = [0x6f]
 
 magic :: [Word8]
 magic = [0x00, 0x61, 0x73, 0x6d]
@@ -86,6 +87,8 @@ primitives = [("+", I32add),
               ("-", I32sub),
               ("*", I32mul),
               ("/", I32div),
+              ("p", Print),
+              ("print", Print),
               ("return", Return)
             ]
 
@@ -112,6 +115,7 @@ getIdData :: Int -> Data -> [Data] -> Int
 getIdData len (KopeString func) (KopeString x:datas)
     | func == x = len
     | otherwise = getIdData (len + 1) (KopeString func) datas
+getIdData _ _ _ = 0
 
 getSegDataSize :: Data -> Int
 getSegDataSize (KopeString func) = length (buildString func)
@@ -121,7 +125,6 @@ buildDataSegments (KopeString func) datas = buildSegmentHeader id_data ++ buildN
     where
         id_data = getIdData 0 (KopeString func) datas
         segLen = getSegDataSize (KopeString func)
-
 
 buildDataSec :: [Data] -> [Word8]
 buildDataSec [] = []
@@ -198,6 +201,33 @@ buildMemorySec _ = buildSectionHeader 0x05 section_size 1 ++ memory
         memory = buildOneMemory
         section_size = length memory
 
+buildExportFunc :: KopeVal -> [KopeVal] -> [Word8]
+buildExportFunc (KopeFunc func _ _) funcs = case functionId of
+    Just i -> buildNumber (length func) ++ buildStringU func ++ [0x00] ++ buildNumber (i)
+    Nothing -> []
+    where
+        functionId = getIdFunction 0 func funcs
+
+buildExportMemory :: String -> [Word8]
+buildExportMemory name = buildNumber (length name) ++ buildStringU name ++ [0x02] ++ [0x00]
+
+buildExportSec :: [KopeVal] -> [Data] -> [Word8]
+buildExportSec [] _ = buildSectionHeader 0x07 section_size 1 ++ exportMemory
+    where
+        exportMemory = buildExportMemory "pagememory"
+        section_size = length exportMemory
+buildExportSec funcs [] = buildSectionHeader 0x07 section_size (length funcs) ++ concated
+    where
+        exportFuncs = map (`buildExportFunc` funcs) funcs
+        concated = concat exportFuncs
+        section_size = length concated
+buildExportSec funcs _ = buildSectionHeader 0x07 section_size (length funcs + 1) ++ exportMemory ++ concated
+    where
+        exportFuncs = map (`buildExportFunc` funcs) funcs
+        exportMemory = buildExportMemory "pagememory"
+        concated = concat exportFuncs
+        section_size = length concated + length exportMemory
+
 buildDataCountSec :: [Data] -> [Word8]
 buildDataCountSec [] = []
 buildDataCountSec datas = buildSectionHeader 0x0c 0 (length datas)
@@ -217,7 +247,7 @@ buildSectionBody funcs = combineEither concatedB concatedD
 
 buildWasm :: [KopeVal] -> Either String [Word8]
 buildWasm funcs = case bo of
-    Right (bodyBytes, datas) -> Right $ magic ++ version ++ buildSectionType funcs ++ buildFunctionSec funcs ++ buildMemorySec datas ++ buildDataCountSec datas ++ bodyBytes ++ buildDataSec datas
+    Right (bodyBytes, datas) -> Right $ magic ++ version ++ buildSectionType funcs ++ buildFunctionSec funcs ++ buildMemorySec datas ++ buildExportSec funcs datas ++ buildDataCountSec datas ++ bodyBytes ++ buildDataSec datas
     (Left err) -> Left err
     where
         bo = buildSectionBody funcs

@@ -3,6 +3,7 @@ import System.Exit
 import Wasm (magic, version, buildSectionHeader, buildWasm, compileOp, compileExpr, buildDataSec, buildDataSegments, buildSegmentHeader, getIdData, compileGetLocalVar)
 import WasmNumber (buildNumber, decodeNumber, buildWords, buildString)
 import KopeParserLib (KopeVal (..))
+import KopeTests (kopeTests)
 
 testMagic :: Test
 testMagic = TestCase (assertEqual "wrong magic value" ([0x00, 0x61, 0x73, 0x6d]) magic)
@@ -32,13 +33,19 @@ testBuildWords = TestCase (assertEqual "buildWords for 624485" [101, 14, 38] (bu
 testCompileGetLocalVar :: Test -- Either String ([Word8], [(String, Int)], [Data])
 testCompileGetLocalVar = TestCase (assertEqual "test get local var with 3 locals" (Right ([0x20, 0x2], [("a", 5), ("b", 10), ("c", 15)], [])) (compileGetLocalVar "c" [("a", 5), ("b", 10), ("c", 15)] []))
 
+testDecodeNumber :: Test
+testDecodeNumber = TestCase (assertEqual "decodeNumber for 10" 10 (decodeNumber (buildNumber 10)))
+
+testDecodeNumber2 :: Test
+testDecodeNumber2 = TestCase (assertEqual "decodeNumber for 1500" 1500 (decodeNumber (buildNumber 1500)))
+
 -- 1001 1000 0111 0110 0101
 -- 1001 1000 0111 0110 0101
 testBuildUnsignedNumber :: Test
 testBuildUnsignedNumber = TestCase (assertEqual "wrong buildNumber output with 0x65" [0x65] (buildNumber 0x65))
 
 testBuildUnsignedNumber2 :: Test
-testBuildUnsignedNumber2 = TestCase (assertEqual "wrong buildNumber output with 624485" [0x26, 0x8E, 0xE5] (buildNumber 624485))
+testBuildUnsignedNumber2 = TestCase (assertEqual "wrong buildNumber output with 624485" [0xE5, 0x8E, 0x26] (buildNumber 624485))
 
 testBuildUnsignedNumber3 :: Test
 testBuildUnsignedNumber3 = TestCase (assertEqual "wrong buildNumber output with 3" [0x3] (buildNumber 0x3))
@@ -48,17 +55,16 @@ testSimpleBuildWasm :: Test
 testSimpleBuildWasm = TestCase (assertEqual "Wrong buildwasm for simple with sub func" (Right bytes) (buildWasm [KopeFunc "sub" ["a", "b"] b]))
     where
         bytes = [
-            0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01, 0x60, 0x02, 0x7F, 0x7F, 0x01, 
-            0x7F, 0x03, 0x02, 0x01, 0x00, 0x0A, 0x09, 0x01, 0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6B, 0x0B]
+                0,97,115,109,1,0,0,0,1,7,1,96,2,127,127,1,127,3,2,1,0,7,7,1,3,115,117,98,0,0,10,11,1,9,1,0,127,32,0,32,1,107,11
+            ]
         b = [KopeArray [KopeAtom "-", KopeAtom "a", KopeAtom "b"]]
 
 testSimpleBuildWasm2 :: Test
 testSimpleBuildWasm2 = TestCase (assertEqual "Wrong buildwasm for simple with sub func" (Right bytes) (buildWasm [KopeFunc "sub" ["a", "b"] subB, KopeFunc "callSub" [] callsubB]))
     where
         bytes = [
-                0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0B, 0x02, 0x60, 0x02, 0x7F, 0x7F, 0x01, 
-                0x7F, 0x60, 0x00, 0x01, 0x7F, 0x03, 0x03, 0x02, 0x00, 0x01, 0x0A, 0x12, 0x02, 0x07, 0x00, 0x20, 
-                0x00, 0x20, 0x01, 0x6B, 0x0B, 0x08, 0x00, 0x41, 0x0A, 0x41, 0x06, 0x10, 0x00, 0x0B
+                0,97,115,109,1,0,0,0,1,11,2,96,2,127,127,1,127,96,0,1,127,3,3,2,0,1,7,17,2,3,115,117,98,0,0,7,99,97,108,108,
+                83,117,98,0,1,10,22,2,9,1,0,127,32,0,32,1,107,11,10,1,0,127,65,10,65,6,16,0,11
             ]
         subB = [KopeArray [KopeAtom "-", KopeAtom "a", KopeAtom "b"]]
         callsubB = [KopeArray [KopeAtom "sub", KopeNumber 10, KopeNumber 6]]
@@ -101,10 +107,18 @@ wasmTests = TestList [
         TestLabel "build segment header with hello world" testBuildSegmentHeader,
         TestLabel "build data segments with hello world" testBuildDataSegments,
         TestLabel "build get local var with 3 locals" testCompileGetLocalVar,
+        TestLabel "decode a number" testDecodeNumber,
+        TestLabel "decode 1500" testDecodeNumber2,
         TestLabel "build data with hello world" testBuildDataSec
     ]
 
+allTests :: Test
+allTests = TestList [
+    TestLabel "Kope Tests" kopeTests,
+    TestLabel "Wasm Tests" wasmTests
+  ]
+
 main :: IO ()
 main = do
-    results <- runTestTT wasmTests
+    results <- runTestTT allTests
     if failures results > 0 then System.Exit.exitFailure else System.Exit.exitSuccess

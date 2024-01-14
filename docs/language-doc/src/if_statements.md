@@ -5,23 +5,18 @@ Usage of if statements is pretty straight forward and easy to use.
 ```
 if (condition) {
 	...
-} else {
-	...
-}
+};
 ```
 
 If you'd like to see a real example
 
-#### **`main.???`**
+#### **`main.kop`**
 ```
 fn main(argc, argv)
 {
 	if (4 > 9) {
-		print("It is true!")
-	} else {
-		print("It is false!")
-	}
-}
+		print("It is true!");
+	};
 ```
 
 To learn how to compile the file, [check this out!](./compile_and_run.md)

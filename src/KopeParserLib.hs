@@ -1,4 +1,4 @@
-module KopeParserLib where
+module KopeParserLib (KopeVal (..), Parser (..), ws, spanP, notNull, stringP, charP, letterP, oneOfP) where
 
 import Control.Applicative
 import Data.Char
@@ -49,7 +49,7 @@ spanP f = Parser $ \input -> do
   Just (rest, valid)
 
 ws :: Parser String
-ws = spanP isSpace <|> spanP (`elem` "\n")
+ws = spanP isSpace
 
 oneOfP :: [String] -> Parser KopeVal
 oneOfP tokens = Parser $ \input -> f tokens input
@@ -72,5 +72,5 @@ stringP = sequenceA . map charP
 letterP :: Parser String
 letterP = notNull $ spanP (\input -> isLetter input || (== '_') input)
 
-removeNewline :: String -> String
-removeNewline xs = [ x | x <- xs, x /= '\n' ]
+kopeComment :: Parser String
+kopeComment = (++) <$> stringP "//" <*> spanP (/= '\n')
