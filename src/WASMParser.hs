@@ -5,11 +5,11 @@ import qualified Data.ByteString.Lazy as BL
 import Data.Word
 import WasmNumber (decodeNumber)
 import Data.Bits ((.&.))
-import Control.Monad (replicateM)
+import Control.Monad (replicateM, foldM)
 
 data WasmModule = WasmModule {
     wasmFuncs :: [WasmFunction],
-    wasmFuncBodies :: [[Word8]]
+    wasmFuncBodies :: [[(Word8, Int)]] -- bytes, local_decl_count (should probably be nbParams + local decl count)
 }
 
 data WasmFunction = WasmFunction {
@@ -94,12 +94,26 @@ parseSectionType = do
             skip sec_len
         _ -> fail "Section type wasn't found after version"
 
-parseFunctionCode :: Get [Word8]
+parseDeclCount :: Get Int
+parseDeclCount = do
+    local_decl_count <- parseNumber
+    parsed <- replicateM local_decl_count parseType
+    return $ sum parsed
+    where
+        parseType :: Get Int
+        parseType = do
+            count <- parseNumber
+            skip 1
+            return count
+
+parseFunctionCode :: Get ([Word8], Int)
 parseFunctionCode = do
     len <- parseNumber
-    replicateM len getWord8
+    decl_count <- parseDeclCount
+    body <- replicateM len getWord8
+    return (body, decl_count)
 
-parseSectionCode :: Get [[Word8]]
+parseSectionCode :: Get [([Word8], Int)]
 parseSectionCode = do
     code <- getWord8
     case code of
