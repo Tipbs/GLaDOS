@@ -3,7 +3,7 @@ import KopeParserLib (KopeVal (..))
 import Numeric (showHex)
 import Control.Monad (liftM, foldM)
 import Data.Binary (Word8)
-import WasmNumber (buildNumber, buildString)
+import WasmNumber (buildNumber, buildString, buildStringU)
 import Data.Either (isRight)
 import Control.Monad.Except (MonadError(throwError))
 
@@ -198,6 +198,33 @@ buildMemorySec _ = buildSectionHeader 0x05 section_size 1 ++ memory
         memory = buildOneMemory
         section_size = length memory
 
+buildExportFunc :: KopeVal -> [KopeVal] -> [Word8]
+buildExportFunc (KopeFunc func _ _) funcs = case functionId of
+    Just i -> buildNumber (length func) ++ buildStringU func ++ [0x00] ++ buildNumber (i)
+    Nothing -> []
+    where
+        functionId = getIdFunction 0 func funcs
+
+buildExportMemory :: String -> [Word8]
+buildExportMemory name = buildNumber (length name) ++ buildStringU name ++ [0x02] ++ [0x00]
+
+buildExportSec :: [KopeVal] -> [Data] -> [Word8]
+buildExportSec [] _ = buildSectionHeader 0x07 section_size 1 ++ exportMemory
+    where
+        exportMemory = buildExportMemory "pagememory"
+        section_size = length exportMemory
+buildExportSec funcs [] = buildSectionHeader 0x07 section_size (length funcs) ++ concated
+    where
+        exportFuncs = map (`buildExportFunc` funcs) funcs
+        concated = concat exportFuncs
+        section_size = length concated
+buildExportSec funcs _ = buildSectionHeader 0x07 section_size (length funcs + 1) ++ exportMemory ++ concated
+    where
+        exportFuncs = map (`buildExportFunc` funcs) funcs
+        exportMemory = buildExportMemory "pagememory"
+        concated = concat exportFuncs
+        section_size = length concated + length exportMemory
+
 buildDataCountSec :: [Data] -> [Word8]
 buildDataCountSec [] = []
 buildDataCountSec datas = buildSectionHeader 0x0c 0 (length datas)
@@ -217,7 +244,7 @@ buildSectionBody funcs = combineEither concatedB concatedD
 
 buildWasm :: [KopeVal] -> Either String [Word8]
 buildWasm funcs = case bo of
-    Right (bodyBytes, datas) -> Right $ magic ++ version ++ buildSectionType funcs ++ buildFunctionSec funcs ++ buildMemorySec datas ++ buildDataCountSec datas ++ bodyBytes ++ buildDataSec datas
+    Right (bodyBytes, datas) -> Right $ magic ++ version ++ buildSectionType funcs ++ buildFunctionSec funcs ++ buildMemorySec datas ++ buildExportSec funcs datas ++ buildDataCountSec datas ++ bodyBytes ++ buildDataSec datas
     (Left err) -> Left err
     where
         bo = buildSectionBody funcs

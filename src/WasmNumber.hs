@@ -1,4 +1,4 @@
-module WasmNumber (buildNumber, buildWords, decodeNumber, buildString) where
+module WasmNumber (buildNumber, buildWords, decodeNumber, buildString, buildStringU) where
 import Data.Binary (Word8, Word32)
 import Data.Bits (Bits(shiftR, shiftL, (.&.), (.|.)))
 import Data.ByteString.Internal (c2w)
@@ -36,3 +36,6 @@ decodeNumber bytes = (fromIntegral word, stolenBytes)
 
 buildString :: String -> [Word8]
 buildString str = B.unpack (B.pack (map c2w str)) ++ [0x00]
+
+buildStringU :: String -> [Word8]
+buildStringU str = B.unpack (B.pack (map c2w str))
