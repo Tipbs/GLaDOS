@@ -17,7 +17,7 @@ data Args = Args (Maybe Compile) (Maybe Exec)
 
 parseArgs :: [String] -> Maybe Args
 parseArgs ["-c", str, "-o", out] = Just $ Args (Just (str, out)) Nothing
-parseArgs ["-e", str] = Just $ Args Nothing (Just str)
+parseArgs ["-r", str] = Just $ Args Nothing (Just str)
 parseArgs _ = Nothing
 
 buildFile :: String -> IO (Either String [Word8])
@@ -68,4 +68,4 @@ main = do
     case parseArgs args of
         Just (Args (Just (input, output)) Nothing) -> printBuilded input output
         Just (Args Nothing (Just exec)) -> printCompiled exec
-        _ -> hPutStrLn stderr "USAGE: ./glados [-c file.kop -o output.wasm] | [-e file.wasm]"
+        _ -> hPutStrLn stderr "USAGE: ./glados [-c file.kop -o output.wasm] | [-r file.wasm]"
