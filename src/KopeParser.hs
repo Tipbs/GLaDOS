@@ -27,7 +27,7 @@ kopeAtom = oneOfP ["==", "/=", ">=", "<=", "&&", "||", "+", "-", "*", "/", "<", 
 
 kopeValue :: Parser KopeVal
 kopeValue = kopeFunc <|> kopeLoop <|> kopeCond <|> kopeCall <|> kopeReturn <|> kopeVarSet <|> kopeTest <|>
-            kopeAtom <|> kopeVar <|> kopeString <|> kopeBool <|> kopeNumber
+            kopeAtom <|> kopeBool <|> kopeVar <|> kopeString <|> kopeNumber
 
 
 -- atomP :: String -> Parser KopeVal
