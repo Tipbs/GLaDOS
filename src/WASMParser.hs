@@ -108,7 +108,7 @@ parseFuncType = do
     case code of
         0x60 -> do
             num_params <- parseNumber
-            skip 2
+            skip num_params
             num_results <- parseNumber
             skip num_results
             return num_params
@@ -170,7 +170,6 @@ parseSections = do
             bodies <- parseSectionCode
             return WasmModule {wasmFuncs = functions, wasmFuncBodies = bodies}
         _ -> fail "One function had no export which match its index"
-
 
 parseWasmModule :: Get WasmModule
 parseWasmModule = do

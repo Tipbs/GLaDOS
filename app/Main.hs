@@ -8,7 +8,7 @@ import Data.Binary (Word8)
 import KopeParser (parseFile)
 import KopeParserLib (KopeVal (KopeArray))
 import qualified Data.ByteString as BS
-import WASMParser (wasmParser, WasmModule (WasmModule))
+import WASMParser (wasmParser, WasmModule (WasmModule), WasmFunction (..))
 import VirtualM (exec)
 
 type Compile = (String, String) -- input output
@@ -35,14 +35,28 @@ printBuilded input output = do
         (Right val) -> BS.writeFile output (BS.pack val)
         (Left err) -> hPutStrLn stderr err
 
+findMain :: WasmModule -> Maybe Int
+findMain (WasmModule funcs bodies) = findFunc funcs 0
+    where
+        findFunc :: [WasmFunction] -> Int -> Maybe Int
+        findFunc ((WasmFunction _ name): xs) i | name == "main" = Just i
+        findFunc ((WasmFunction _ name): xs) i = findFunc xs (i + 1)
+        findFunc [] i = Nothing
+
+executeMain :: WasmModule -> Either String Int
+executeMain modu@(WasmModule funcs bodies) = case main_index of
+    Just i -> exec (fst $ bodies !! i) [] [] modu
+    Nothing -> Left "Couldn't find main in the exports"
+    where
+        main_index = findMain modu
+
 printCompiled :: String -> IO ()
 printCompiled path = do
     parsed <- wasmParser path
     case parsed of
         Right modu@(WasmModule funcs bodies) -> do
             putStrLn $ "Module in VM: " ++ show modu
-            let executed = exec (fst $ head bodies) [] [4, 5] modu
-            case executed of
+            case executeMain modu of
                 Right val -> putStrLn $ "The final value is " ++ show val
                 Left err -> hPutStrLn stderr ("Error while executing the bytecode: " ++ err)
 
