@@ -1,4 +1,4 @@
-module KopeParserLib (KopeVal (..), Parser (..), ws, spanP, notNull, stringP, charP, letterP, oneOfP, removeNewline) where
+module KopeParserLib (KopeVal (..), Parser (..), ws, spanP, notNull, stringP, charP, letterP, oneOfP) where
 
 import Control.Applicative
 import Data.Char
@@ -74,6 +74,3 @@ letterP = notNull $ spanP (\input -> isLetter input || (== '_') input)
 
 kopeComment :: Parser String
 kopeComment = (++) <$> stringP "//" <*> spanP (/= '\n')
-
--- removeNewline :: String -> String
--- removeNewline xs = [ x | x <- xs, x /= '\n' ]
