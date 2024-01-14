@@ -1,4 +1,4 @@
-module KopeParserLib where
+module KopeParserLib (KopeVal (..), Parser (..), ws, spanP, notNull, stringP, charP, letterP, oneOfP, removeNewline) where
 
 import Control.Applicative
 import Data.Char
@@ -6,7 +6,7 @@ import Data.Char
 data KopeVal = KopeNull
   | KopeAtom String
   | KopeBool Bool
-  | KopeNumber Integer
+  | KopeNumber Int
   | KopeString String
   | KopeArray [KopeVal]
   | KopeFunc { funcName :: String, funcParams :: [String],

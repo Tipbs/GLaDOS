@@ -1,18 +1,18 @@
-module Wasm (buildWasm, compileExpr, magic, version, buildSectionHeader, buildDataSec, buildDataSegments, buildSegmentHeader, getIdData, compileOp, WasmOp (..)) where
-import Parser (LispVal (..))
+module Wasm (buildWasm, compileExpr, magic, version, buildSectionHeader, buildDataSec, buildDataSegments, buildSegmentHeader, getIdData, compileOp, WasmOp (..), compileGetLocalVar) where
+import KopeParserLib (KopeVal (..))
 import Numeric (showHex)
 import Control.Monad (liftM, foldM)
 import Data.Binary (Word8)
-import WasmNumber (buildNumber, buildString)
+import WasmNumber (buildNumber, buildString, buildStringU)
 import Data.Either (isRight)
 import Control.Monad.Except (MonadError(throwError))
 
-data WasmOp = LocalSet Int | LocalGet Int | I32add | I32sub | I32mul | I32div| I32const | EndFunc
+data WasmOp = LocalSet Int | LocalGet Int | I32add | I32sub | I32mul | I32div | I32const | EndFunc | Return | Print
     deriving (Eq)
 
-type Stack = [LispVal]
+type Stack = [KopeVal]
 type Local = (String, Int)
-type Data = LispVal
+type Data = KopeVal
 
 -- https://developer.mozilla.org/en-US/docs/WebAssembly/Reference/Numeric
 wasmOpToCode :: WasmOp -> [Word8]
@@ -24,6 +24,8 @@ wasmOpToCode I32mul = [0x6c]
 wasmOpToCode I32div = [0x6d]
 wasmOpToCode I32const = [0x41]
 wasmOpToCode EndFunc = [0x0b]
+wasmOpToCode Return = []
+wasmOpToCode Print = [0x6f]
 
 magic :: [Word8]
 magic = [0x00, 0x61, 0x73, 0x6d]
@@ -38,12 +40,12 @@ buildSectionHeader code size nb = [code] ++ buildNumber newSize ++ newNb
         newSize = size + length newNb
 
 -- if the signature already exist it should not push the result
-buildFunctionType :: LispVal -> [Word8] -- pour le moment le type est forcé i32
-buildFunctionType (Func _ p _) = [0x60] ++ buildNumber (length p) ++ map (const 0x7f) p ++ [0x01, 0x7f] -- le dernier tableau correspondrait au return
+buildFunctionType :: KopeVal -> [Word8] -- pour le moment le type est forcé i32
+buildFunctionType (KopeFunc _ p _) = [0x60] ++ buildNumber (length p) ++ map (const 0x7f) p ++ [0x01, 0x7f] -- le dernier tableau correspondrait au return
 buildFunctionType _ = []
 
 -- ghci > debugHex $ buildSectionType [Func "add" ["15", "5"] [Number 5]]
-buildSectionType :: [LispVal] -> [Word8]
+buildSectionType :: [KopeVal] -> [Word8]
 buildSectionType functions = buildSectionHeader 0x01 section_size (length functions) ++ concat functions_types
     where
         functions_types = map buildFunctionType functions
@@ -53,7 +55,7 @@ buildSectionType functions = buildSectionHeader 0x01 section_size (length functi
 debugHex :: [Word8] -> [String]
 debugHex = map (`showHex` "")
 
-buildFunctionSec :: [LispVal] -> [Word8]
+buildFunctionSec :: [KopeVal] -> [Word8]
 buildFunctionSec functions = buildSectionHeader 0x03 section_size (length functions) ++ concated
     where
         function_index = map buildNumber [0..length functions - 1]
@@ -63,12 +65,17 @@ buildFunctionSec functions = buildSectionHeader 0x03 section_size (length functi
 compileNumber :: Int -> [Word8]
 compileNumber val = wasmOpToCode I32const ++ buildNumber val
 
+getLocalIndex :: Int -> String -> [Local] -> Maybe Int
+getLocalIndex nb localVar ((x,_):rest)
+    | localVar == x = Just nb
+    | otherwise = getLocalIndex (nb + 1) localVar rest
+
 compileGetLocalVar :: String -> [Local] -> [Data] -> Either String ([Word8], [(String, Int)], [Data])
 compileGetLocalVar localVar localList datas = case mIndex of
     Nothing -> Left $ "Couldn't find local variable " ++ localVar
     Just i -> Right (wasmOpToCode $ LocalGet i, localList, datas)
     where
-        mIndex = lookup localVar localList
+        mIndex = getLocalIndex 0 localVar localList
 
 compileOp :: String -> [Word8]
 compileOp str = maybe [] wasmOpToCode opeOp
@@ -79,19 +86,22 @@ primitives :: [(String, WasmOp)]
 primitives = [("+", I32add),
               ("-", I32sub),
               ("*", I32mul),
-              ("/", I32div)
+              ("/", I32div),
+              ("p", Print),
+              ("print", Print),
+              ("return", Return)
             ]
 
-getIdFunction :: Int -> String -> [LispVal] -> Maybe Int
+getIdFunction :: Int -> String -> [KopeVal] -> Maybe Int
 getIdFunction _ _ [] = Nothing
-getIdFunction len called (Func func _ _ : rest)
+getIdFunction len called (KopeFunc func _ _ : rest)
     | isMatching = Just len
     | otherwise = getIdFunction (len + 1) called rest
     where
         isMatching = called == func
 getIdFunction _ _ _ = Nothing
 
-getFunctionCall :: String -> [LispVal] -> Either String [Word8]
+getFunctionCall :: String -> [KopeVal] -> Either String [Word8]
 getFunctionCall called funcs = case id_function of
     Just i -> Right $ 0x10 : buildNumber i
     Nothing -> Left $ "Could not find function named " ++ called
@@ -102,32 +112,39 @@ buildSegmentHeader :: Int -> [Word8]
 buildSegmentHeader idx = [0x00, 0x41] ++ buildNumber idx ++ [0x0b]
 
 getIdData :: Int -> Data -> [Data] -> Int
-getIdData len (String func) (String x:datas)
+getIdData len (KopeString func) (KopeString x:datas)
     | func == x = len
-    | otherwise = getIdData (len + 1) (String func) datas
+    | otherwise = getIdData (len + 1) (KopeString func) datas
+getIdData _ _ _ = 0
 
 getSegDataSize :: Data -> Int
-getSegDataSize (String func) = length (buildString func)
+getSegDataSize (KopeString func) = length (buildString func)
 
 buildDataSegments :: Data -> [Data] -> [Word8]
-buildDataSegments (String func) datas = buildSegmentHeader id_data ++ buildNumber segLen ++ buildString func 
+buildDataSegments (KopeString func) datas = buildSegmentHeader id_data ++ buildNumber segLen ++ buildString func
     where
-        id_data = getIdData 0 (String func) datas
-        segLen = getSegDataSize (String func)
-
+        id_data = getIdData 0 (KopeString func) datas
+        segLen = getSegDataSize (KopeString func)
 
 buildDataSec :: [Data] -> [Word8]
+buildDataSec [] = []
 buildDataSec datas = buildSectionHeader 0x0b section_size (length datas) ++ concated
     where
         data_segments = map (`buildDataSegments` datas) datas
         concated = concat data_segments
         section_size = length concated
 
-compileFunctionBody :: LispVal -> [LispVal] -> [Data] -> Either String ([Word8], [Local], [Data])
-compileFunctionBody (Func _ ps bod) funcs oldDatas = case evaledFunc of
+compileLocalDeclTypes :: [Word8] -> [Word8]
+compileLocalDeclTypes local_count = written_count ++ local_count ++ [0x7f]
+    where
+        written_count = if null local_count then [0] else [1]
+
+compileFunctionBody :: KopeVal -> [KopeVal] -> [Data] -> Either String ([Word8], [Local], [Data])
+compileFunctionBody (KopeFunc _ ps bod) funcs oldDatas = case evaledFunc of
     (Right (bytes, locals, datas)) ->
         let local_decl_count = buildNumber (length locals - length ps)
-            header = buildNumber (length bytes + 1 + length local_decl_count) ++ local_decl_count -- +1 for end
+            local_decl_types = compileLocalDeclTypes local_decl_count
+            header = buildNumber (length bytes + length local_decl_count + length local_decl_types) ++ local_decl_types
             in Right (header ++ bytes ++ wasmOpToCode EndFunc, locals, datas ++ oldDatas)
     v@(Left _) -> v
     where
@@ -143,15 +160,21 @@ compileFunctionBody (Func _ ps bod) funcs oldDatas = case evaledFunc of
 compileFunctionBody _ _ _ = Left "Invalid call to compileFunctionBody"
 
 -- debugHex $ fst (compileExpr (List [Atom "add", Number 5]) [Func "add" ["a", "b"] [Number 5], Func "sub" ["a", "b"] [Number 5]] [])
-compileExpr :: LispVal -> Stack -> [Local] -> [Data] -> Either String ([Word8], [Local], [Data])
-compileExpr f@(Func {}) funcs _ datas = compileFunctionBody f funcs datas
-compileExpr (List [Atom "define", Atom var, Number form]) _ locals datas = Right ([0x01, 0x7f], locals ++ [(var, form)], datas)
-compileExpr (Number val) _ locals datas = Right (compileNumber val, locals, datas)
-compileExpr (Bool val) _ locals datas = Right (compileNumber nbVal, locals, datas)
+compileExpr :: KopeVal -> Stack -> [Local] -> [Data] -> Either String ([Word8], [Local], [Data])
+compileExpr f@(KopeFunc {}) funcs _ datas = compileFunctionBody f funcs datas
+compileExpr (KopeString str) funcs locals datas = Right (0x41 : buildNumber (length datas), locals, datas ++ [KopeString str])
+compileExpr (KopeArray (KopeAtom "define": KopeAtom var: args)) funcs locals datas = case argsB of -- Right ([0x01, 0x7f], locals ++ [(var, form)], datas)
+    Right argsDat -> let (_, _, lastData) = last argsDat
+        in Right (concatMap (\(b, _, _) -> b) argsDat ++ [0x21] ++ buildNumber (length locals), locals ++ [(var, 0)], lastData)
+    Left err -> Left err
+    where
+        argsB = mapM (\arg -> compileExpr arg funcs locals datas) args
+compileExpr (KopeNumber val) _ locals datas = Right (compileNumber val, locals, datas)
+compileExpr (KopeBool val) _ locals datas = Right (compileNumber nbVal, locals, datas)
     where
         nbVal = if val then 1 else 0
-compileExpr (Atom localVar) _ locals datas = compileGetLocalVar localVar locals datas
-compileExpr (List (Atom func : args)) funcs locals datas = case checked of
+compileExpr (KopeAtom localVar) _ locals datas = compileGetLocalVar localVar locals datas
+compileExpr (KopeArray (KopeAtom func : args)) funcs locals datas = case checked of
     Right (argsDat, callB) -> Right (concatMap (\(b, _, _) -> b) argsDat ++ callB, locals, concatMap (\(_, _, p) -> p) argsDat ++ datas)
     (Left err) -> Left err
     where
@@ -166,9 +189,51 @@ compileExpr (List (Atom func : args)) funcs locals datas = case checked of
         checked = checkBoth argsB functionCall
 compileExpr _ _ _ _ = Left "Not defined yet"
         -- concated = beforeB ++ getFunctionCall func funcs
+        --
+
+buildOneMemory :: [Word8]
+buildOneMemory = [0x00, 0x00]
+
+buildMemorySec :: [Data] -> [Word8]
+buildMemorySec [] = []
+buildMemorySec _ = buildSectionHeader 0x05 section_size 1 ++ memory
+    where
+        memory = buildOneMemory
+        section_size = length memory
+
+buildExportFunc :: KopeVal -> [KopeVal] -> [Word8]
+buildExportFunc (KopeFunc func _ _) funcs = case functionId of
+    Just i -> buildNumber (length func) ++ buildStringU func ++ [0x00] ++ buildNumber (i)
+    Nothing -> []
+    where
+        functionId = getIdFunction 0 func funcs
+
+buildExportMemory :: String -> [Word8]
+buildExportMemory name = buildNumber (length name) ++ buildStringU name ++ [0x02] ++ [0x00]
+
+buildExportSec :: [KopeVal] -> [Data] -> [Word8]
+buildExportSec [] _ = buildSectionHeader 0x07 section_size 1 ++ exportMemory
+    where
+        exportMemory = buildExportMemory "pagememory"
+        section_size = length exportMemory
+buildExportSec funcs [] = buildSectionHeader 0x07 section_size (length funcs) ++ concated
+    where
+        exportFuncs = map (`buildExportFunc` funcs) funcs
+        concated = concat exportFuncs
+        section_size = length concated
+buildExportSec funcs _ = buildSectionHeader 0x07 section_size (length funcs + 1) ++ exportMemory ++ concated
+    where
+        exportFuncs = map (`buildExportFunc` funcs) funcs
+        exportMemory = buildExportMemory "pagememory"
+        concated = concat exportFuncs
+        section_size = length concated + length exportMemory
+
+buildDataCountSec :: [Data] -> [Word8]
+buildDataCountSec [] = []
+buildDataCountSec datas = buildSectionHeader 0x0c 0 (length datas)
 
 -- code horrible
-buildSectionBody :: [LispVal] -> Either String ([Word8], [Data])
+buildSectionBody :: [KopeVal] -> Either String ([Word8], [Data])
 buildSectionBody funcs = combineEither concatedB concatedD
     where
         compiled = mapM (\func -> compileExpr func funcs [] []) funcs
@@ -176,13 +241,13 @@ buildSectionBody funcs = combineEither concatedB concatedD
         concatedB = concatMap fst <$> mapped
         concatedD = concatMap snd <$> mapped
         combineEither :: Either String [Word8] -> Either String [Data] -> Either String ([Word8], [Data])
-        combineEither (Right b) (Right d) = Right (buildSectionHeader 0x0a (length b) (length funcs) ++ b, d)
+        combineEither (Right b) (Right d) = Right (buildSectionHeader 0x0A (length b) (length funcs) ++ b, d)
         combineEither (Left err) _ = Left err
         combineEither _ (Left err) = Left err
 
-buildWasm :: [LispVal] -> Either String [Word8]
+buildWasm :: [KopeVal] -> Either String [Word8]
 buildWasm funcs = case bo of
-    Right (bodyBytes, _) -> Right $ magic ++ version ++ buildSectionType funcs ++ buildFunctionSec funcs ++ bodyBytes
+    Right (bodyBytes, datas) -> Right $ magic ++ version ++ buildSectionType funcs ++ buildFunctionSec funcs ++ buildMemorySec datas ++ buildExportSec funcs datas ++ buildDataCountSec datas ++ bodyBytes ++ buildDataSec datas
     (Left err) -> Left err
     where
         bo = buildSectionBody funcs

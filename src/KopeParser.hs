@@ -1,4 +1,4 @@
-module KopeParser where
+module KopeParser (parseFile) where
 
 import KopeParserLib
 import Control.Applicative
@@ -19,15 +19,12 @@ kopeNumber = f <$> notNull (spanP isDigit)
 kopeVar :: Parser KopeVal
 kopeVar = KopeAtom <$> notNull letterP
 
-stringLiteral :: Parser String
-stringLiteral = spanP (/= ' ')
-
 kopeAtom :: Parser KopeVal
 kopeAtom = oneOfP ["==", "/=", ">=", "<=", "&&", "||", "+", "-", "*", "/", "<", ">"]
 
 kopeValue :: Parser KopeVal
 kopeValue = kopeFunc <|> kopeLoop <|> kopeCond <|> kopeCall <|> kopeReturn <|> kopeVarSet <|> kopeTest <|>
-            kopeAtom <|> kopeVar <|> kopeString <|> kopeBool <|> kopeNumber
+            kopeAtom <|> kopeBool <|> kopeVar <|> kopeString <|> kopeNumber
 
 
 -- atomP :: String -> Parser KopeVal

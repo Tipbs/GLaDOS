@@ -2,21 +2,21 @@
 
 As said on the [Hello world! page](./hello_world.md), functions can return value that can be used or stored in a variable.
 
-#### **`main.???`**
+#### **`main.kop`**
 ```
-int sum(x, y)
+fn sum(x, y)
 {
 	return x + y;
 }
 
-int main(argc, argv)
+fn main()
 {
 	var x = 5;
 	var y = 8;
 	var z = sum(x, y);
 
-	print(z)
-	print(z + sum(z, x))
+	print(z);
+	print(sum(z, x));
 }
 ```
 

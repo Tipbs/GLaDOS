@@ -9,4 +9,5 @@
 	- [Function that returns a value](./function_with_return.md)
 	- [Conditions](./conditions.md)
 	- [If Statements](./if_statements.md)
-	- [Lists](./lists.md)
+	- [While Statements](./while_statements.md)
+	<!-- - [Lists](./lists.md) -->
