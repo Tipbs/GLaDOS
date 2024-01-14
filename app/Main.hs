@@ -8,7 +8,8 @@ import Data.Binary (Word8)
 import KopeParser (parseFile)
 import KopeParserLib (KopeVal (KopeArray))
 import qualified Data.ByteString as BS
-import WASMParser (wasmParser)
+import WASMParser (wasmParser, WasmModule (WasmModule))
+import VirtualM (exec)
 
 type Compile = (String, String) -- input output
 type Exec = String
@@ -32,13 +33,21 @@ printBuilded input output = do
     builded <- buildFile input
     case builded of
         (Right val) -> BS.writeFile output (BS.pack val)
-        (Left err) -> putStrLn err
+        (Left err) -> hPutStrLn stderr err
 
 printCompiled :: String -> IO ()
 printCompiled path = do
     parsed <- wasmParser path
-    putStrLn $ "Module in VM: " ++ show parsed
+    case parsed of
+        Right modu@(WasmModule funcs bodies) -> do
+            putStrLn $ "Module in VM: " ++ show modu
+            let executed = exec (fst $ head bodies) [] [4, 5] modu
+            case executed of
+                Right val -> putStrLn $ "The final value is " ++ show val
+                Left err -> hPutStrLn stderr ("Error while executing the bytecode: " ++ err)
 
+        Left err -> hPutStrLn stderr err
+    
 main :: IO ()
 main = do
     args <- getArgs

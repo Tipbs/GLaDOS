@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
-module VirtualM () where
+module VirtualM (exec) where
 
 import Data.Word (Word8)
 import Data.Bits ( Bits((.&.)) )
@@ -84,6 +84,7 @@ vmParseNumber w = (decoded, drop (length parsed) w)
     where
         parseUntilHighBit :: [Word8] -> [Word8]
         parseUntilHighBit (word: xs) | (word .&. 128) /= 0 = word : parseUntilHighBit xs
+        parseUntilHighBit (word: _) = [word]
         parseUntilHighBit _ = []
         parsed = parseUntilHighBit w
         decoded = decodeNumber parsed
@@ -157,4 +158,4 @@ exec (0x10:remain) st locals funcs = case calling_func of
         (WasmFunction param_count _) = wf !! func_index 
         (bytes, local_decl_count) = wasmFuncBodies !! func_index
         calling_func = exec bytes [] (take param_count st ++ replicate local_decl_count 0) funcs
-exec _ _ _ _ = Left "exec didn't match any pattern"
+exec op stack _ _ = Left $ "exec didn't match any pattern, instructions: " ++ show op ++ ", stack: " ++ show stack

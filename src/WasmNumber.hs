@@ -28,6 +28,7 @@ decodeWord byte it = w
         w = shiftL (fromIntegral withoutHigh) (7 * it)
 
 decodeNumber :: [Word8] -> Int
+decodeNumber [] = 0
 decodeNumber bytes = fromIntegral word
     where
         nbBytes = takeWhile (\b -> (b .&. 128) /= 0) bytes
