@@ -1,4 +1,4 @@
-module KopeParser (parseFile) where
+module KopeParser (parseFile, kopeExpr) where
 
 import KopeParserLib
 import Control.Applicative
