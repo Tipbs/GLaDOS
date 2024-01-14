@@ -5,7 +5,7 @@ import qualified Data.ByteString.Lazy as BL
 import Data.Word
 import WasmNumber (decodeNumber)
 import Data.Bits ((.&.))
-import Control.Monad (replicateM, foldM)
+import Control.Monad (replicateM)
 
 data WasmModule = WasmModule {
     wasmFuncs :: [WasmFunction],
@@ -85,15 +85,6 @@ parseWasmBytes wasmModule = do
                 _ -> parseWasmFunctions False
             parseWasmBytes WasmModule { wasmFuncs = wasmFuncs wasmModule ++ [funcs], wasmFuncBodies = []}
 
-parseSectionType :: Get ()
-parseSectionType = do
-    code <- getWord8
-    case code of
-        0x01 -> do
-            sec_len <- parseNumber
-            skip sec_len
-        _ -> fail "Section type wasn't found after version"
-
 parseDeclCount :: Get Int
 parseDeclCount = do
     local_decl_count <- parseNumber
@@ -122,12 +113,32 @@ parseSectionCode = do
             replicateM func_count parseFunctionCode
         _ -> fail "Section code isn't after section fonction (could be normal)"
 
+parseFuncType :: Get Int
+parseFuncType = do
+    code <- getWord8
+    case code of
+        0x60 -> do
+            num_params <- parseNumber
+            skip 2
+            num_results <- parseNumber
+            skip num_results
+            return num_params
+        _ -> fail "A type didn't start with 0x60 (func type)"
+
+parseSectionType :: Get [Int]
+parseSectionType = do
+    code <- getWord8
+    case code of
+        0x01 -> do
+            num_funcs <- parseNumber
+            replicateM num_funcs parseFuncType
+        _ -> fail "The program didn't start with section type"
 
 parseWasmModule :: Get WasmModule
 parseWasmModule = do
     magic <- getWord32be
-    version <- getWord32be
-    if magic /= 0x0061736d || version /= 0x01
+    version <- getWord32le
+    if magic /= 0x0061736d || version /= 1
         then
             fail "Wrong magic or version number"
         else do
