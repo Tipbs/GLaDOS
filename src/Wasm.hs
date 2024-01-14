@@ -112,6 +112,7 @@ getIdData :: Int -> Data -> [Data] -> Int
 getIdData len (KopeString func) (KopeString x:datas)
     | func == x = len
     | otherwise = getIdData (len + 1) (KopeString func) datas
+getIdData _ _ _ = 0
 
 getSegDataSize :: Data -> Int
 getSegDataSize (KopeString func) = length (buildString func)
@@ -121,7 +122,6 @@ buildDataSegments (KopeString func) datas = buildSegmentHeader id_data ++ buildN
     where
         id_data = getIdData 0 (KopeString func) datas
         segLen = getSegDataSize (KopeString func)
-
 
 buildDataSec :: [Data] -> [Word8]
 buildDataSec [] = []
