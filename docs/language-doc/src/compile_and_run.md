@@ -26,6 +26,6 @@ Now that you have your executable, you need to use the VM in the GLaDOS program.
 To do so, use this command:
 
 ```bash
-> ./GLaDOS -e executable
+> ./GLaDOS -r executable
 Hello world!
 ```

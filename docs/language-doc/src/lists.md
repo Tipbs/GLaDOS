@@ -15,6 +15,6 @@ int main(argc, argv)
 To learn how to compile the file, [check this out!](./compile_and_run.md)
 
 ```
-> ./GLaDOS -e executable
+> ./GLaDOS -r executable
 [1, "salut", "hey"]
 ```
