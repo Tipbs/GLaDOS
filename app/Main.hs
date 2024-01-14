@@ -41,11 +41,11 @@ findMain (WasmModule funcs _) = findFunc funcs 0
         findFunc ((WasmFunction _ _): xs) i = findFunc xs (i + 1)
         findFunc [] _ = Nothing
 
-executeMain :: WasmModule -> Either String Int
+executeMain :: WasmModule -> IO (Either String Int)
 executeMain modu@(WasmModule _ bodies) = case main_index of
     Just i -> let (mainB, local_decl_count) = bodies !! i
                 in exec mainB [] (replicate local_decl_count 0) modu
-    Nothing -> Left "Couldn't find main in the exports"
+    Nothing -> return $ Left "Couldn't find main in the exports"
     where
         main_index = findMain modu
 
@@ -54,8 +54,9 @@ printCompiled path = do
     parsed <- wasmParser path
     case parsed of
         Right modu -> do
-            putStrLn $ "Module in VM: " ++ show modu
-            case executeMain modu of
+            -- putStrLn $ "Module in VM: " ++ show modu
+            executeM <- executeMain modu
+            case executeM of
                 Right val -> putStrLn $ "The final value is " ++ show val
                 Left err -> hPutStrLn stderr ("Error while executing the bytecode: " ++ err)
 

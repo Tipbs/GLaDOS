@@ -111,9 +111,9 @@ execPrimitive _ _ = Left "Wrong call to execPrimitive"
 --         (firstVal, firstRemain) = vmParseNumber remain
 --         (secondVal, secondRemain) = vmParseNumber secondRemain
 
-exec :: Insts -> Stack -> Local -> WasmModule -> Either String Value
-exec [] _ _ _ = Left "Error : No return instruction."
-exec [0xb] [val] _ _ = Right val -- end 
+exec :: Insts -> Stack -> Local -> WasmModule -> IO (Either String Value)
+exec [] _ _ _ = return $ Left "Error : No return instruction."
+exec [0xb] [val] _ _ = return $ Right val -- end 
 exec (0x41: remain) st locals funcs = exec remaining (push nb st) locals funcs
     where
         (nb, remaining) = vmParseNumber remain
@@ -121,22 +121,22 @@ exec (0x6a : remain) stack locals funcs = do
                                       let res = execPrimitive 0x6a stack
                                       case res of
                                         Right inst -> exec remain inst locals funcs
-                                        Left str -> Left str
+                                        Left str -> return $ Left str
 exec (0x6b : remain) stack locals funcs = do
                                       let res = execPrimitive 0x6b stack
                                       case res of
                                         Right inst -> exec remain inst locals funcs
-                                        Left str -> Left str
+                                        Left str -> return $ Left str
 exec (0x6c : remain) stack locals funcs = do
                                       let res = execPrimitive 0x6c stack
                                       case res of
                                         Right inst -> exec remain inst locals funcs
-                                        Left str -> Left str
+                                        Left str -> return $ Left str
 exec (0x6d : remain) stack locals funcs = do
                                       let res = execPrimitive 0x6d stack
                                       case res of
                                         Right inst -> exec remain inst locals funcs
-                                        Left str -> Left str
+                                        Left str -> return $ Left str
 exec (0x21: remain) (val: sRemain) locals funcs = exec remaining sRemain locals_updated funcs
     where
         (index, remaining) = vmParseNumber remain
@@ -145,17 +145,22 @@ exec (0x21: remain) (val: sRemain) locals funcs = exec remaining sRemain locals_
         replace (x: xs) i v = x: replace xs (i - 1) v
         replace [] _ _ = []
         locals_updated = replace locals index val
+exec (0x6f: remain) (x: xs) locals funcs = do
+    print $ x
+    exec remain xs locals funcs
 exec (0x20: remain) stack locals funcs = exec remaining (val: stack) locals funcs
     where
         (index, remaining) = vmParseNumber remain
         val = locals !! index
-exec (0x10:remain) st locals funcs = case calling_func of
-    Right val -> exec remaining (val: drop param_count st) locals funcs
-    err@(Left _) -> err
+exec (0x10:remain) st locals funcs = do
+    calling <- calling_func
+    case calling of
+        Right val -> exec remaining (val: drop param_count st) locals funcs
+        err@(Left _) -> return err
     where
         (func_index, remaining) = vmParseNumber remain
         (WasmModule wf bodies) = funcs
         (WasmFunction param_count _) = wf !! func_index 
         (bytes, local_decl_count) = bodies !! func_index
         calling_func = exec bytes [] (take param_count st ++ replicate local_decl_count 0) funcs
-exec op stack _ _ = Left $ "exec didn't match any pattern, instructions: " ++ show op ++ ", stack: " ++ show stack
+exec op stack _ _ = return $ Left $ "exec didn't match any pattern, instructions: " ++ show op ++ ", stack: " ++ show stack

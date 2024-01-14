@@ -7,7 +7,7 @@ import WasmNumber (buildNumber, buildString, buildStringU)
 import Data.Either (isRight)
 import Control.Monad.Except (MonadError(throwError))
 
-data WasmOp = LocalSet Int | LocalGet Int | I32add | I32sub | I32mul | I32div | I32const | EndFunc | Return
+data WasmOp = LocalSet Int | LocalGet Int | I32add | I32sub | I32mul | I32div | I32const | EndFunc | Return | Print
     deriving (Eq)
 
 type Stack = [KopeVal]
@@ -25,6 +25,7 @@ wasmOpToCode I32div = [0x6d]
 wasmOpToCode I32const = [0x41]
 wasmOpToCode EndFunc = [0x0b]
 wasmOpToCode Return = []
+wasmOpToCode Print = [0x6f]
 
 magic :: [Word8]
 magic = [0x00, 0x61, 0x73, 0x6d]
@@ -86,6 +87,8 @@ primitives = [("+", I32add),
               ("-", I32sub),
               ("*", I32mul),
               ("/", I32div),
+              ("p", Print),
+              ("print", Print),
               ("return", Return)
             ]
 
