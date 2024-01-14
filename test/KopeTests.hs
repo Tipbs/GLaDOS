@@ -1,4 +1,4 @@
-module KopeTests where
+module KopeTests (kopeTests) where
 import Test.HUnit
 import System.Exit
 import KopeParserLib

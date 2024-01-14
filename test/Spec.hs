@@ -3,6 +3,7 @@ import System.Exit
 import Wasm (magic, version, buildSectionHeader, buildWasm, compileOp, compileExpr, buildDataSec, buildDataSegments, buildSegmentHeader, getIdData, compileGetLocalVar)
 import WasmNumber (buildNumber, decodeNumber, buildWords, buildString)
 import KopeParserLib (KopeVal (..))
+import KopeTests (kopeTests)
 
 testMagic :: Test
 testMagic = TestCase (assertEqual "wrong magic value" ([0x00, 0x61, 0x73, 0x6d]) magic)
