@@ -54,17 +54,16 @@ testSimpleBuildWasm :: Test
 testSimpleBuildWasm = TestCase (assertEqual "Wrong buildwasm for simple with sub func" (Right bytes) (buildWasm [KopeFunc "sub" ["a", "b"] b]))
     where
         bytes = [
-            0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01, 0x60, 0x02, 0x7F, 0x7F, 0x01, 
-            0x7F, 0x03, 0x02, 0x01, 0x00, 0x0A, 0x09, 0x01, 0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6B, 0x0B]
+                0,97,115,109,1,0,0,0,1,7,1,96,2,127,127,1,127,3,2,1,0,7,7,1,3,115,117,98,0,0,10,11,1,9,1,0,127,32,0,32,1,107,11
+            ]
         b = [KopeArray [KopeAtom "-", KopeAtom "a", KopeAtom "b"]]
 
 testSimpleBuildWasm2 :: Test
 testSimpleBuildWasm2 = TestCase (assertEqual "Wrong buildwasm for simple with sub func" (Right bytes) (buildWasm [KopeFunc "sub" ["a", "b"] subB, KopeFunc "callSub" [] callsubB]))
     where
         bytes = [
-                0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0B, 0x02, 0x60, 0x02, 0x7F, 0x7F, 0x01, 
-                0x7F, 0x60, 0x00, 0x01, 0x7F, 0x03, 0x03, 0x02, 0x00, 0x01, 0x0A, 0x12, 0x02, 0x07, 0x00, 0x20, 
-                0x00, 0x20, 0x01, 0x6B, 0x0B, 0x08, 0x00, 0x41, 0x0A, 0x41, 0x06, 0x10, 0x00, 0x0B
+                0,97,115,109,1,0,0,0,1,11,2,96,2,127,127,1,127,96,0,1,127,3,3,2,0,1,7,17,2,3,115,117,98,0,0,7,99,97,108,108,
+                83,117,98,0,1,10,22,2,9,1,0,127,32,0,32,1,107,11,10,1,0,127,65,10,65,6,16,0,11
             ]
         subB = [KopeArray [KopeAtom "-", KopeAtom "a", KopeAtom "b"]]
         callsubB = [KopeArray [KopeAtom "sub", KopeNumber 10, KopeNumber 6]]
