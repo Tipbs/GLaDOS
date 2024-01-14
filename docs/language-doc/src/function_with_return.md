@@ -2,7 +2,7 @@
 
 As said on the [Hello world! page](./hello_world.md), functions can return value that can be used or stored in a variable.
 
-#### **`main.???`**
+#### **`main.kop`**
 ```
 int sum(x, y)
 {
@@ -16,7 +16,7 @@ int main(argc, argv)
 	var z = sum(x, y);
 
 	print(z)
-	print(z + sum(z, x))
+	print(sum(z, x))
 }
 ```
 

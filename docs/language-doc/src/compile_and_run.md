@@ -1,22 +1,22 @@
 # Compile and run your program
 
-Now that we have our file `main.???`, we'll have to compile it using GLaDOS
+Now that we have our file `main.kop`, we'll have to compile it using GLaDOS
 
 ### Compile using GLaDOS
 
 Compiling is pretty straight forward, all we need to do is to give our file to the GLaDOS program and use the `-c` argument
 
-Let's compile our file `main.???`:
+Let's compile our file `main.kop`:
 
 ```bash
-> ./GLaDOS -c main.???
+> ./GLaDOS -c main.kop
 ```
 
 Well done! Look, there is a new file in our directory:
 
 ```bash
 > ls
-main.??? exectuable
+main.wasm exectuable
 ```
 
 ### Run using GLaDOS
