@@ -13,8 +13,8 @@ data WasmModule = WasmModule {
 }
 
 data WasmFunction = WasmFunction {
-    nbParams :: Int,
-    paramsType :: [ParamsType]
+    nbParams :: Int
+    -- paramsType :: [ParamsType]
 }
 
 data ParamsType = I32 | I64
@@ -130,9 +130,27 @@ parseSectionType = do
     code <- getWord8
     case code of
         0x01 -> do
+            size <- parseNumber
             num_funcs <- parseNumber
             replicateM num_funcs parseFuncType
         _ -> fail "The program didn't start with section type"
+
+parseSectionFunction :: Get [Int] -- return signature index
+parseSectionFunction = do
+    code <- getWord8
+    case code of
+        0x03 -> do
+            size <- parseNumber
+            num_funcs <- parseNumber
+            replicateM num_funcs parseNumber
+        _ -> fail "Section Type was not followed with section function"
+
+parseSections :: Get WasmModule
+parseSections = do
+    type_sec <- parseSectionType
+    func_sec <- parseSectionFunction
+    let functions_header = map (\i -> type_sec !! i) func_sec
+    
 
 parseWasmModule :: Get WasmModule
 parseWasmModule = do
