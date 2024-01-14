@@ -81,25 +81,25 @@ sepByP sep element = (:) <$> (ws *> element) <*> many (ws *> sep *> ws *> elemen
 sepByEndP :: Parser a -> Parser b -> Parser [b]
 sepByEndP sep element = many (ws *> element <* ws <* sep <* ws)
 
-bodyP :: Parser KopeVal
-bodyP = KopeArray <$> (charP '{' *> ws *> declaration <* ws <* charP '}')
+bodyP :: Parser [KopeVal]
+bodyP = charP '{' *> ws *> declaration <* ws <* charP '}'
   where
     declaration = sepByEndP (charP ';') kopeExpr
 
-paramsP :: Parser KopeVal
-paramsP = KopeArray <$> (ws *> charP '(' *> declaration <* charP ')' <* ws)
+paramsP :: Parser [String]
+paramsP = ws *> charP '(' *> declaration <* charP ')' <* ws
   where
-    declaration = sepByP (charP ',') (KopeString <$> letterP)
+    declaration = sepByP (charP ',') letterP
 
-nameP :: Parser KopeVal
-nameP = KopeString <$> (stringP "fn" *> ws *> notNull letterP <* ws)
+nameP :: Parser String
+nameP = stringP "fn" *> ws *> notNull letterP <* ws
 
 kopeFunc :: Parser KopeVal
 kopeFunc = Parser $ \input -> do
   (input', name) <- nameF input
   (input'', params) <- paramsF input'
   (input''', body) <- bodyF input''
-  Just (input''', KopeFunc (funcName name) (funcParams params) (funcBody body))
+  Just (input''', KopeFunc name params body)
   where
     Parser nameF = nameP
     Parser paramsF = paramsP
@@ -135,7 +135,7 @@ kopeCond :: Parser KopeVal
 kopeCond = KopeArray <$> pair
   where
     pair =
-      (\cond body -> [KopeAtom "if", cond, body]) <$>
+      (\cond body -> [KopeAtom "if", cond, KopeArray body]) <$>
       (stringP "if" *> ws *> kopeTest <* ws) <*>
       bodyP
 
@@ -143,7 +143,7 @@ kopeLoop :: Parser KopeVal
 kopeLoop = KopeArray <$> pair
   where
     pair =
-      (\cond body -> [KopeAtom "while", cond, body]) <$>
+      (\cond body -> [KopeAtom "while", cond, KopeArray body]) <$>
       (stringP "while" *> ws *> kopeTest <* ws) <*>
       bodyP
 
