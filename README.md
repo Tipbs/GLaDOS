@@ -1,10 +1,10 @@
 # GLaDOS
 
-GLaDOS is a custom language created in Haskell possible to compile and execute.
+GLaDOS is a compiler and a virtual machine for our new language called Kope
 
 ## How does it work?
 
-Given a kop file containing a program coded by the user, following the kope syntax, GLaDOS will compile it into a WebAssembly file which can be executed by GLaDOS as well.
+Given a kop file containing the source code of a program following the kope syntax, GLaDOS will compile it into a WebAssembly file which can be executed by modern web browsers and GLaDOS.
 
 ## Getting Started
 
