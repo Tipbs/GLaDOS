@@ -1,4 +1,3 @@
-{-# HLINT ignore "Use newtype instead of data" #-}
 module WASMParser (wasmParser, WasmModule (..), WasmFunction (..)) where
 import Data.Binary.Get
 import qualified Data.ByteString.Lazy as BL
@@ -33,19 +32,6 @@ instance Show ParamsType where
     show I32 = "i32"
     show I64 = "i64"
 
-getWasmType :: Int -> [ParamsType] -> Get [ParamsType]
-getWasmType n typesParams = do
-    if n == 0
-        then
-            return typesParams
-        else do
-            byte <- getWord8
-            paramType <- case byte of
-                0x7f -> return I32
-                0x7e -> return I64
-                _ -> return I32
-            getWasmType (n - 1) (typesParams ++ [paramType])
-
 parseLebWords :: Get [Word8]
 parseLebWords = do
     byte <- getWord8
@@ -57,12 +43,6 @@ parseLebWords = do
 
 parseNumber :: Get Int
 parseNumber = decodeNumber <$> parseLebWords
-
-validWasmFunction :: [WasmFunction] -> [WasmFunction]
-validWasmFunction [] = []
-validWasmFunction (x:xs)
-    | nbParams x == 0 = validWasmFunction xs
-    | otherwise = x : validWasmFunction xs
 
 parseDeclCount :: Get Int
 parseDeclCount = do
@@ -87,7 +67,7 @@ parseBody = do
 
 parseFunctionCode :: Get ([Word8], Int)
 parseFunctionCode = do
-    len <- parseNumber
+    _ <- parseNumber
     decl_count <- parseDeclCount
     body <- parseBody
     return (body, decl_count)
@@ -97,7 +77,7 @@ parseSectionCode = do
     code <- getWord8
     case code of
         0x0a -> do
-            size <- parseNumber
+            _ <- parseNumber
             func_count <- parseNumber
             replicateM func_count parseFunctionCode
         _ -> fail "Section code isn't after section fonction (could be normal)"
@@ -119,7 +99,7 @@ parseSectionType = do
     code <- getWord8
     case code of
         0x01 -> do
-            size <- parseNumber
+            _ <- parseNumber
             num_funcs <- parseNumber
             replicateM num_funcs parseFuncType
         _ -> fail "The program didn't start with section type"
@@ -129,7 +109,7 @@ parseSectionFunction = do
     code <- getWord8
     case code of
         0x03 -> do
-            size <- parseNumber
+            _ <- parseNumber
             num_funcs <- parseNumber
             replicateM num_funcs parseNumber
         _ -> fail "Section Type was not followed with section function"

@@ -4,7 +4,7 @@ module VirtualM (exec) where
 import Data.Word (Word8)
 import Data.Bits ( Bits((.&.)) )
 import WasmNumber (decodeNumber)
-import WASMParser (WasmModule (WasmModule, wasmFuncs), WasmFunction (WasmFunction))
+import WASMParser (WasmModule (..), WasmFunction (..))
 
 type Stack = [Value]
 type Local = [Value]
@@ -143,7 +143,7 @@ exec (0x21: remain) (val: sRemain) locals funcs = exec remaining sRemain locals_
         replace :: Local -> Int -> Value -> Local
         replace (_: xs) 0 v = v: replace xs (-1) v
         replace (x: xs) i v = x: replace xs (i - 1) v
-        replace _ _ _ = []
+        replace [] _ _ = []
         locals_updated = replace locals index val
 exec (0x20: remain) stack locals funcs = exec remaining (val: stack) locals funcs
     where
@@ -154,8 +154,8 @@ exec (0x10:remain) st locals funcs = case calling_func of
     err@(Left _) -> err
     where
         (func_index, remaining) = vmParseNumber remain
-        (WasmModule wf wasmFuncBodies) = funcs
+        (WasmModule wf bodies) = funcs
         (WasmFunction param_count _) = wf !! func_index 
-        (bytes, local_decl_count) = wasmFuncBodies !! func_index
+        (bytes, local_decl_count) = bodies !! func_index
         calling_func = exec bytes [] (take param_count st ++ replicate local_decl_count 0) funcs
 exec op stack _ _ = Left $ "exec didn't match any pattern, instructions: " ++ show op ++ ", stack: " ++ show stack

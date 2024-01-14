@@ -19,9 +19,6 @@ kopeNumber = f <$> notNull (spanP isDigit)
 kopeVar :: Parser KopeVal
 kopeVar = KopeAtom <$> notNull letterP
 
-stringLiteral :: Parser String
-stringLiteral = spanP (/= ' ')
-
 kopeAtom :: Parser KopeVal
 kopeAtom = oneOfP ["==", "/=", ">=", "<=", "&&", "||", "+", "-", "*", "/", "<", ">"]
 

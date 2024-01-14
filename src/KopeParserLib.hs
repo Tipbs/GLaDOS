@@ -1,4 +1,4 @@
-module KopeParserLib where
+module KopeParserLib (KopeVal (..), Parser (..), ws, spanP, notNull, stringP, charP, letterP, oneOfP, removeNewline) where
 
 import Control.Applicative
 import Data.Char
