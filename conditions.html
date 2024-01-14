@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Conditions - Documentation of our super language</title>
+        <title>Conditions - Documentation of Kope language</title>
 
 
         <!-- Custom HTML head -->
@@ -88,7 +88,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="getting_started.html"><strong aria-hidden="true">2.</strong> Getting started</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="hello_world.html"><strong aria-hidden="true">2.1.</strong> Hello world!</a></li><li class="chapter-item expanded "><a href="compile_and_run.html"><strong aria-hidden="true">2.2.</strong> Compile and run your program</a></li></ol></li><li class="chapter-item expanded "><a href="syntax.html"><strong aria-hidden="true">3.</strong> Go further</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="variables.html"><strong aria-hidden="true">3.1.</strong> Variables</a></li><li class="chapter-item expanded "><a href="function_with_return.html"><strong aria-hidden="true">3.2.</strong> Function that returns a value</a></li><li class="chapter-item expanded "><a href="conditions.html" class="active"><strong aria-hidden="true">3.3.</strong> Conditions</a></li><li class="chapter-item expanded "><a href="if_statements.html"><strong aria-hidden="true">3.4.</strong> If Statements</a></li><li class="chapter-item expanded "><a href="lists.html"><strong aria-hidden="true">3.5.</strong> Lists</a></li></ol></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="getting_started.html"><strong aria-hidden="true">2.</strong> Getting started</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="hello_world.html"><strong aria-hidden="true">2.1.</strong> Hello world!</a></li><li class="chapter-item expanded "><a href="compile_and_run.html"><strong aria-hidden="true">2.2.</strong> Compile and run your program</a></li></ol></li><li class="chapter-item expanded "><a href="syntax.html"><strong aria-hidden="true">3.</strong> Go further</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="variables.html"><strong aria-hidden="true">3.1.</strong> Variables</a></li><li class="chapter-item expanded "><a href="function_with_return.html"><strong aria-hidden="true">3.2.</strong> Function that returns a value</a></li><li class="chapter-item expanded "><a href="conditions.html" class="active"><strong aria-hidden="true">3.3.</strong> Conditions</a></li><li class="chapter-item expanded "><a href="if_statements.html"><strong aria-hidden="true">3.4.</strong> If Statements</a></li><li class="chapter-item expanded "><a href="while_statements.html"><strong aria-hidden="true">3.5.</strong> While Statements</a></li></ol></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -141,7 +141,7 @@
                         </button>
                     </div>
 
-                    <h1 class="menu-title">Documentation of our super language</h1>
+                    <h1 class="menu-title">Documentation of Kope language</h1>
 
                     <div class="right-buttons">
                         <a href="print.html" title="Print this book" aria-label="Print this book">
@@ -181,11 +181,19 @@
 <li><code>a &gt; b</code> greater thané</li>
 <li><code>a &gt;= </code>greater than or equal to b</li>
 <li><code>a == b</code> equal to</li>
-<li><code>a != b</code> not equal to</li>
+<li><code>a /= b</code> not equal to</li>
 </ul>
 <p>Their use is pretty straight forward, you can get the boolean value and store it as a variable or use it in <strong>if statements</strong></p>
 <pre><code>var value = 1 == 2;
 // value == false
+</code></pre>
+<p>Condition can be combined thanks to this operator:</p>
+<ul>
+<li><code>a &amp;&amp; b</code> and</li>
+<li><code>a || b</code> or</li>
+</ul>
+<pre><code>var value = 1 == 2 || true == true;
+// value == true
 </code></pre>
 <p>As we said earlier, they can be use in <strong>if statements</strong>, check out next page...</p>
 

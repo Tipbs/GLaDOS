@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Hello world! - Documentation of our super language</title>
+        <title>Hello world! - Documentation of Kope language</title>
 
 
         <!-- Custom HTML head -->
@@ -88,7 +88,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="getting_started.html"><strong aria-hidden="true">2.</strong> Getting started</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="hello_world.html" class="active"><strong aria-hidden="true">2.1.</strong> Hello world!</a></li><li class="chapter-item expanded "><a href="compile_and_run.html"><strong aria-hidden="true">2.2.</strong> Compile and run your program</a></li></ol></li><li class="chapter-item expanded "><a href="syntax.html"><strong aria-hidden="true">3.</strong> Go further</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="variables.html"><strong aria-hidden="true">3.1.</strong> Variables</a></li><li class="chapter-item expanded "><a href="function_with_return.html"><strong aria-hidden="true">3.2.</strong> Function that returns a value</a></li><li class="chapter-item expanded "><a href="conditions.html"><strong aria-hidden="true">3.3.</strong> Conditions</a></li><li class="chapter-item expanded "><a href="if_statements.html"><strong aria-hidden="true">3.4.</strong> If Statements</a></li><li class="chapter-item expanded "><a href="lists.html"><strong aria-hidden="true">3.5.</strong> Lists</a></li></ol></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="getting_started.html"><strong aria-hidden="true">2.</strong> Getting started</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="hello_world.html" class="active"><strong aria-hidden="true">2.1.</strong> Hello world!</a></li><li class="chapter-item expanded "><a href="compile_and_run.html"><strong aria-hidden="true">2.2.</strong> Compile and run your program</a></li></ol></li><li class="chapter-item expanded "><a href="syntax.html"><strong aria-hidden="true">3.</strong> Go further</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="variables.html"><strong aria-hidden="true">3.1.</strong> Variables</a></li><li class="chapter-item expanded "><a href="function_with_return.html"><strong aria-hidden="true">3.2.</strong> Function that returns a value</a></li><li class="chapter-item expanded "><a href="conditions.html"><strong aria-hidden="true">3.3.</strong> Conditions</a></li><li class="chapter-item expanded "><a href="if_statements.html"><strong aria-hidden="true">3.4.</strong> If Statements</a></li><li class="chapter-item expanded "><a href="while_statements.html"><strong aria-hidden="true">3.5.</strong> While Statements</a></li></ol></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -141,7 +141,7 @@
                         </button>
                     </div>
 
-                    <h1 class="menu-title">Documentation of our super language</h1>
+                    <h1 class="menu-title">Documentation of Kope language</h1>
 
                     <div class="right-buttons">
                         <a href="print.html" title="Print this book" aria-label="Print this book">
@@ -187,21 +187,16 @@
 <li><code>(a, b)</code> are the function arguments, define them using the parenthesis, then give them a name (here <code>a</code> and <code>b</code>)</li>
 <li><code>{ ... }</code> open the function, that's where your code will go</li>
 </ul>
-<p>Functions can also return a value using the <code>return</code> keyword followed by a value (example: <code>return 4</code>.</p>
+<p>Functions can also return a value using the <code>return</code> keyword followed by a value (example: <code>return 4</code>).</p>
 <h3 id="alright-now-that-you-know-how-to-create-a-function-lets-introduce-the-main-function"><a class="header" href="#alright-now-that-you-know-how-to-create-a-function-lets-introduce-the-main-function">Alright, now that you know how to create a function, let's introduce the <code>main</code> function.</a></h3>
 <p>The <code>main</code> function is the function that is being executed first, so if we want to write a Hello world!, then we'll have to create a main function:</p>
-<h4 id="main"><a class="header" href="#main"><strong><code>main.???</code></strong></a></h4>
-<pre><code>fn main(argc, argv)
+<h4 id="mainkop"><a class="header" href="#mainkop"><strong><code>main.kop</code></strong></a></h4>
+<pre><code>fn main()
 {
 	print(&quot;Hello world!\n&quot;);
 }
 </code></pre>
 <p>There you go, Hello world!</p>
-<p>The <code>main</code> function takes 2 arguments:</p>
-<ul>
-<li><code>argc</code>, being the number of arguments passed from the command line</li>
-<li><code>argv</code>, being an array containing the arguments passed from the command line</li>
-</ul>
 <p>The <code>print</code> function takes 1 argument, here a string, that is gonna be written to the screen. The <code>\n</code> at the end of the string means that we want to add a new-line at after the text.</p>
 <p>Now that we have created our <code>main</code> function printing &quot;Hello world!&quot; to the terminal, we need to compile and run our code, head up to the next part to learn how!</p>
 

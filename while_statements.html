@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Lists - Documentation of our super language</title>
+        <title>While Statements - Documentation of Kope language</title>
 
 
         <!-- Custom HTML head -->
@@ -88,7 +88,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="getting_started.html"><strong aria-hidden="true">2.</strong> Getting started</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="hello_world.html"><strong aria-hidden="true">2.1.</strong> Hello world!</a></li><li class="chapter-item expanded "><a href="compile_and_run.html"><strong aria-hidden="true">2.2.</strong> Compile and run your program</a></li></ol></li><li class="chapter-item expanded "><a href="syntax.html"><strong aria-hidden="true">3.</strong> Go further</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="variables.html"><strong aria-hidden="true">3.1.</strong> Variables</a></li><li class="chapter-item expanded "><a href="function_with_return.html"><strong aria-hidden="true">3.2.</strong> Function that returns a value</a></li><li class="chapter-item expanded "><a href="conditions.html"><strong aria-hidden="true">3.3.</strong> Conditions</a></li><li class="chapter-item expanded "><a href="if_statements.html"><strong aria-hidden="true">3.4.</strong> If Statements</a></li><li class="chapter-item expanded "><a href="lists.html" class="active"><strong aria-hidden="true">3.5.</strong> Lists</a></li></ol></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="getting_started.html"><strong aria-hidden="true">2.</strong> Getting started</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="hello_world.html"><strong aria-hidden="true">2.1.</strong> Hello world!</a></li><li class="chapter-item expanded "><a href="compile_and_run.html"><strong aria-hidden="true">2.2.</strong> Compile and run your program</a></li></ol></li><li class="chapter-item expanded "><a href="syntax.html"><strong aria-hidden="true">3.</strong> Go further</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="variables.html"><strong aria-hidden="true">3.1.</strong> Variables</a></li><li class="chapter-item expanded "><a href="function_with_return.html"><strong aria-hidden="true">3.2.</strong> Function that returns a value</a></li><li class="chapter-item expanded "><a href="conditions.html"><strong aria-hidden="true">3.3.</strong> Conditions</a></li><li class="chapter-item expanded "><a href="if_statements.html"><strong aria-hidden="true">3.4.</strong> If Statements</a></li><li class="chapter-item expanded "><a href="while_statements.html" class="active"><strong aria-hidden="true">3.5.</strong> While Statements</a></li></ol></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -141,7 +141,7 @@
                         </button>
                     </div>
 
-                    <h1 class="menu-title">Documentation of our super language</h1>
+                    <h1 class="menu-title">Documentation of Kope language</h1>
 
                     <div class="right-buttons">
                         <a href="print.html" title="Print this book" aria-label="Print this book">
@@ -173,19 +173,26 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="lists"><a class="header" href="#lists">Lists</a></h1>
-<p>Lists are used to store multiple arguments in 1 variable, in the format of an array.</p>
-<h4 id="main"><a class="header" href="#main"><strong><code>main.???</code></strong></a></h4>
-<pre><code>int main(argc, argv)
+                        <h1 id="while-statements"><a class="header" href="#while-statements">While Statements</a></h1>
+<p>Usage of while statements is pretty straight forward and easy to use.</p>
+<pre><code>while (condition) {
+	...
+};
+</code></pre>
+<p>If you'd like to see a real example</p>
+<h4 id="mainkop"><a class="header" href="#mainkop"><strong><code>main.kop</code></strong></a></h4>
+<pre><code>fn main(argc, argv)
 {
-   var littleList = [1, &quot;salut&quot;, &quot;hey&quot;];
-
-   print(littleList);
-}
+    var i = 0
+    print(&quot;Here are all digit: &quot;)
+	While (i &lt; 10) {
+		print(i);
+		print(&quot; &quot;);
+	};
 </code></pre>
 <p>To learn how to compile the file, <a href="./compile_and_run.html">check this out!</a></p>
-<pre><code>&gt; ./GLaDOS -r executable
-[1, &quot;salut&quot;, &quot;hey&quot;]
+<pre><code class="language-sh">&gt; ./GLaDOS -r executable
+Here are all digit: 1 2 3 4 5 6 7 8 9 
 </code></pre>
 
                     </main>
