@@ -147,6 +147,9 @@ kopeLoop = KopeArray <$> pair
       (stringP "while" *> ws *> kopeTest <* ws) <*>
       bodyP
 
+kopeComment :: Parser String
+kopeComment = stringP "//" *> spanP (/= '\n')
+
 parseExpr :: [[String]] -> Parser KopeVal
 parseExpr [] = kopeValue
 parseExpr (x: xs) = Parser $ \input -> do
