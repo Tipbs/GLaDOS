@@ -32,13 +32,19 @@ testBuildWords = TestCase (assertEqual "buildWords for 624485" [101, 14, 38] (bu
 testCompileGetLocalVar :: Test -- Either String ([Word8], [(String, Int)], [Data])
 testCompileGetLocalVar = TestCase (assertEqual "test get local var with 3 locals" (Right ([0x20, 0x2], [("a", 5), ("b", 10), ("c", 15)], [])) (compileGetLocalVar "c" [("a", 5), ("b", 10), ("c", 15)] []))
 
+testDecodeNumber :: Test
+testDecodeNumber = TestCase (assertEqual "decodeNumber for 10" 10 (decodeNumber (buildNumber 10)))
+
+testDecodeNumber2 :: Test
+testDecodeNumber2 = TestCase (assertEqual "decodeNumber for 1500" 1500 (decodeNumber (buildNumber 1500)))
+
 -- 1001 1000 0111 0110 0101
 -- 1001 1000 0111 0110 0101
 testBuildUnsignedNumber :: Test
 testBuildUnsignedNumber = TestCase (assertEqual "wrong buildNumber output with 0x65" [0x65] (buildNumber 0x65))
 
 testBuildUnsignedNumber2 :: Test
-testBuildUnsignedNumber2 = TestCase (assertEqual "wrong buildNumber output with 624485" [0x26, 0x8E, 0xE5] (buildNumber 624485))
+testBuildUnsignedNumber2 = TestCase (assertEqual "wrong buildNumber output with 624485" [0xE5, 0x8E, 0x26] (buildNumber 624485))
 
 testBuildUnsignedNumber3 :: Test
 testBuildUnsignedNumber3 = TestCase (assertEqual "wrong buildNumber output with 3" [0x3] (buildNumber 0x3))
@@ -101,6 +107,8 @@ wasmTests = TestList [
         TestLabel "build segment header with hello world" testBuildSegmentHeader,
         TestLabel "build data segments with hello world" testBuildDataSegments,
         TestLabel "build get local var with 3 locals" testCompileGetLocalVar,
+        TestLabel "decode a number" testDecodeNumber,
+        TestLabel "decode 1500" testDecodeNumber2,
         TestLabel "build data with hello world" testBuildDataSec
     ]
 

@@ -14,7 +14,7 @@ buildWords nb = rmLastB : buildWords shifted
 -- https://en.wikipedia.org/wiki/LEB128
 buildNumber :: Int -> [Word8]
 buildNumber 0 = [0x00]
-buildNumber nb = setHighestByte
+buildNumber nb = reverse setHighestByte
     where
         sepBySeven = reverse $ buildWords nb
         tailBitSet = map (.|. 128) (tail sepBySeven)
@@ -23,16 +23,17 @@ buildNumber nb = setHighestByte
 decodeWord :: Word8 -> Int -> Word32
 decodeWord byte it = w
     where
-        withoutHigh = shiftR byte 1
+        withoutHigh = byte .&. 0x7F
         w :: Word32
-        w = shiftL (fromIntegral withoutHigh) (8 * it)
+        w = shiftL (fromIntegral withoutHigh) (7 * it)
 
 decodeNumber :: [Word8] -> Int
 decodeNumber bytes = fromIntegral word
     where
         nbBytes = takeWhile (\b -> (b .&. 128) /= 0) bytes
         stolenBytes = length nbBytes
-        word = foldl (\acc (it, b) -> acc + decodeWord b it) 0 (zip [0..stolenBytes] nbBytes)
+        addLast = nbBytes ++ [bytes !! stolenBytes]
+        word = foldl (\acc (it, b) -> acc + decodeWord b it) 0 (zip [0..stolenBytes] addLast)
 
 buildString :: String -> [Word8]
 buildString str = B.unpack (B.pack (map c2w str)) ++ [0x00]

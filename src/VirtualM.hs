@@ -157,4 +157,4 @@ exec (0x10:remain) st locals funcs = case calling_func of
         (WasmFunction param_count _) = wf !! func_index 
         (bytes, local_decl_count) = wasmFuncBodies !! func_index
         calling_func = exec bytes [] (take param_count st ++ replicate local_decl_count 0) funcs
-exec _ _ _ _ = Left "tetet"
+exec _ _ _ _ = Left "exec didn't match any pattern"
