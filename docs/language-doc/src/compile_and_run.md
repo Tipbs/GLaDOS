@@ -9,7 +9,7 @@ Compiling is pretty straight forward, all we need to do is to give our file to t
 Let's compile our file `main.kop`:
 
 ```bash
-> ./GLaDOS -c main.kop
+> ./GLaDOS -c main.kop -o main.wasm
 ```
 
 Well done! Look, there is a new file in our directory:
@@ -26,6 +26,6 @@ Now that you have your executable, you need to use the VM in the GLaDOS program.
 To do so, use this command:
 
 ```bash
-> ./GLaDOS -r executable
+> ./GLaDOS -e executable
 Hello world!
 ```
