@@ -1,5 +1,5 @@
 {-# HLINT ignore "Use newtype instead of data" #-}
-module WASMParser (wasmParser) where
+module WASMParser (wasmParser, WasmModule (..), WasmFunction (..)) where
 import Data.Binary.Get
 import qualified Data.ByteString.Lazy as BL
 import Data.Word
@@ -9,7 +9,7 @@ import Control.Monad (replicateM, foldM)
 
 data WasmModule = WasmModule {
     wasmFuncs :: [WasmFunction],
-    wasmFuncBodies :: [[(Word8, Int)]] -- bytes, local_decl_count (should probably be nbParams + local decl count)
+    wasmFuncBodies :: [([Word8], Int)] -- bytes, local_decl_count (should probably be nbParams + local decl count)
 }
 
 data WasmFunction = WasmFunction {
