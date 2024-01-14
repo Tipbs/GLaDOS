@@ -76,11 +76,20 @@ parseDeclCount = do
             skip 1
             return count
 
+parseBody :: Get [Word8]
+parseBody = do
+    byte <- getWord8
+    if byte == 0x0b -- end opcode
+        then return [byte]
+        else do
+            rest <- parseBody
+            return (byte : rest)
+
 parseFunctionCode :: Get ([Word8], Int)
 parseFunctionCode = do
     len <- parseNumber
     decl_count <- parseDeclCount
-    body <- replicateM len getWord8
+    body <- parseBody
     return (body, decl_count)
 
 parseSectionCode :: Get [([Word8], Int)]
@@ -88,6 +97,7 @@ parseSectionCode = do
     code <- getWord8
     case code of
         0x0a -> do
+            size <- parseNumber
             func_count <- parseNumber
             replicateM func_count parseFunctionCode
         _ -> fail "Section code isn't after section fonction (could be normal)"
@@ -152,14 +162,14 @@ parseSections = do
     func_sec <- parseSectionFunction
     exports <- parseSectionExport
     let functions_params = map (type_sec !!) func_sec
-    let functions_strings = mapM (`lookup` exports) [0..length functions_params]
+    -- error $ show exports
+    let functions_strings = mapM (`lookup` exports) [0..length functions_params - 1] -- fetch name for each func
     case functions_strings of
         Just names -> do
             let functions = map (\(n, p_count) -> WasmFunction {nbParams = p_count, name = n}) (zip names functions_params)
             bodies <- parseSectionCode
             return WasmModule {wasmFuncs = functions, wasmFuncBodies = bodies}
         _ -> fail "One function had no export which match its index"
-    -- let functions_parsed = map (\i p_count -> WasmFunction {nbParams = p_count, name = lookup exports !! i}) (zip [0..length functions_params] functions_params)
 
 
 parseWasmModule :: Get WasmModule
