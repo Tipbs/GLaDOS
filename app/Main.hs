@@ -8,10 +8,10 @@ import Data.Binary (Word8)
 import KopeParser (parseFile)
 import KopeParserLib (KopeVal (KopeArray))
 import qualified Data.ByteString as BS
+import WASMParser (wasmParser)
 
 type Compile = (String, String) -- input output
 type Exec = String
-type Output = String
 data Args = Args (Maybe Compile) (Maybe Exec)
 
 parseArgs :: [String] -> Maybe Args
@@ -34,10 +34,15 @@ printBuilded input output = do
         (Right val) -> BS.writeFile output (BS.pack val)
         (Left err) -> putStrLn err
 
+printCompiled :: String -> IO ()
+printCompiled path = do
+    parsed <- wasmParser path
+    putStrLn $ "Module in VM: " ++ show parsed
+
 main :: IO ()
 main = do
     args <- getArgs
     case parseArgs args of
         Just (Args (Just (input, output)) Nothing) -> printBuilded input output
-        Just (Args Nothing (Just exec)) -> putStrLn ("compiled: " ++ exec)
+        Just (Args Nothing (Just exec)) -> printCompiled exec
         _ -> hPutStrLn stderr "USAGE: ./glados [-c file.kop -o output.wasm] | [-e file.wasm]"

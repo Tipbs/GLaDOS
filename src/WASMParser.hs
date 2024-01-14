@@ -22,7 +22,7 @@ data WasmFunction = WasmFunction {
 data ParamsType = I32 | I64
 
 instance Show WasmModule where
-    show (WasmModule functions bodies) = "Functions: " ++ show functions ++ show bodies
+    show (WasmModule functions bodies) = "Functions: " ++ show functions ++ "\nBodies: " ++ show bodies
 
 instance Show WasmFunction where
     show (WasmFunction paramsNb typeParams) =
@@ -190,10 +190,10 @@ parseWasmFile filePath = do
         Left (_, _, errMsg) -> return $ Left errMsg
         Right (_, _, wasmModule) -> return $ Right wasmModule
 
-wasmParser :: String -> IO ()
+wasmParser :: String -> IO (Either String WasmModule)
 wasmParser wasmFilePath = do
     parsedResult <- parseWasmFile wasmFilePath
 
     case parsedResult of
-        Left errMsg -> putStrLn $ "Error parsing wasm file: " ++ errMsg
-        Right wasmModule -> putStrLn $ "Parsed wasm module:\n" ++ show wasmModule
+        Left errMsg -> return $ Left errMsg
+        Right wasmModule -> return $ Right wasmModule
